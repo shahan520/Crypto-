@@ -1,162 +1,1429 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
-  ChevronDown,
-  EyeOff,
-  Eye,
-  Home as HomeIcon,
-  Briefcase,
-  Grid3X3,
-  ClipboardList,
-  User,
-  ArrowUpRight,
-  ArrowDownLeft,
-  UserPlus,
-  Bell,
-  ChevronRight,
-  Search,
-  CheckCircle2,
-  Clock,
-  CircleDashed,
-  Settings as SettingsIcon,
-  Shield,
-  Globe,
-  LogOut,
-  Copy,
-  Info,
-  BookOpen,
-  HelpCircle,
-  FileBadge2,
-  Users,
-  TrendingUp,
-  Wifi,
-  Signal,
-  ChevronLeft,
-  Lock,
-  Bell as BellIcon,
-  Fingerprint,
-  CreditCard,
-  FileText,
-  Link as LinkIcon,
-  Gift,
-  SlidersHorizontal,
-  Award,
-  CalendarDays,
-  Star,
-  X,
-  AlertCircle,
-  CheckCheck,
+  Home, Headphones, ShoppingBag, ClipboardList, User,
+  ChevronRight, ChevronLeft, Copy, Check, X,
+  Users, FileText, BarChart2, Mail, ArrowDownToLine,
+  ArrowUpFromLine, Lock, Eye, EyeOff, Globe, LogOut,
+  MessageCircle, HelpCircle, Bell, Plus, Shield,
+  CheckCircle2, Clock, AlertCircle,
 } from "lucide-react";
 
-type Page = "login" | "home" | "service" | "menu" | "records" | "profile" | "settings";
+// ─── Colors ───────────────────────────────────────────────────────────────────
+const C = {
+  orange: "#f5a100",
+  orangeLight: "#fff8e7",
+  orangeDark: "#d48900",
+  wine: "#7a2c3e",
+  wineDark: "#4a1525",
+  bg: "#f4f5f7",
+  white: "#ffffff",
+  text: "#222222",
+  textMid: "#666666",
+  textLight: "#999999",
+  border: "#e8e8e8",
+  green: "#22c55e",
+  red: "#ef4444",
+  blue: "#3b82f6",
+};
 
-export function App() {
-  const [currentPage, setCurrentPage] = useState<Page>("login");
-  const [isAnimating, setIsAnimating] = useState(false);
+// ─── Types ────────────────────────────────────────────────────────────────────
+type Tab = "home" | "service" | "menu" | "record" | "mine";
+type SubPage =
+  | "deposit" | "deposit-qr"
+  | "withdraw" | "add-wallet"
+  | "teams" | "invite" | "wallet-mgmt"
+  | "profile" | "deposit-records" | "withdraw-records"
+  | "setting" | "task";
 
-  const navigate = (page: Page) => {
-    if (page === currentPage) return;
-    setIsAnimating(true);
-    setTimeout(() => {
-      setCurrentPage(page);
-      setIsAnimating(false);
-    }, 180);
-  };
+const BASE = import.meta.env.BASE_URL;
 
-  const isLoggedIn = currentPage !== "login";
+// ─── Pentagon Flower Logo SVG ─────────────────────────────────────────────────
+function PentagonLogo({ size = 40 }: { size?: number }) {
+  const s = size;
+  const c = s / 2;
+  const d = s * 0.21;
+  const r = s * 0.30;
+
+  const pts = (cx: number, cy: number, rot: number) =>
+    Array.from({ length: 5 }, (_, i) => {
+      const a = (i * 72 + rot) * (Math.PI / 180);
+      return `${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`;
+    }).join(" ");
+
+  const shapes = [
+    { color: "#e8403a", dir: -90 },
+    { color: "#f1c40f", dir: -18 },
+    { color: "#9b59b6", dir:  54 },
+    { color: "#3498db", dir: 126 },
+    { color: "#2ecc71", dir: 198 },
+  ];
 
   return (
-    <div className="min-h-screen bg-[#e0dde0] flex items-center justify-center font-sans">
-      <div
-        className="w-[390px] h-[844px] bg-white overflow-hidden relative flex flex-col"
-        style={{
-          borderRadius: "44px",
-          border: "10px solid #1a1a1a",
-          boxShadow:
-            "0 40px 80px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,0.08)",
-        }}
-      >
-        {/* Status Bar */}
-        <div className="w-full flex justify-between items-center px-7 pt-3 pb-1 shrink-0 z-50 relative">
-          <span className="text-[13px] font-semibold text-gray-900 tabular-nums">9:41</span>
-          <div className="w-28 h-7 bg-black rounded-full absolute left-1/2 -translate-x-1/2 top-1.5" />
-          <div className="flex items-center gap-1.5">
-            <Signal size={14} className="text-gray-900" strokeWidth={2.5} />
-            <Wifi size={14} className="text-gray-900" strokeWidth={2.5} />
-            <div className="w-[22px] h-[11px] rounded-[3px] border-[1.5px] border-gray-700 relative p-[1.5px] flex items-center">
-              <div className="w-[60%] h-full bg-gray-800 rounded-[1px]" />
+    <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`} style={{ display: "block" }}>
+      {shapes.map((sh, i) => {
+        const rad = sh.dir * (Math.PI / 180);
+        const px = c + d * Math.cos(rad);
+        const py = c + d * Math.sin(rad);
+        return <polygon key={i} points={pts(px, py, sh.dir + 90)} fill={sh.color} />;
+      })}
+    </svg>
+  );
+}
+
+// ─── VIP Badge ────────────────────────────────────────────────────────────────
+function VipBadge({ level = 0 }: { level?: number }) {
+  return (
+    <span style={{
+      background: C.orange, color: "#fff",
+      fontSize: 10, fontWeight: 700,
+      padding: "1px 6px", borderRadius: 3, letterSpacing: 0.3,
+    }}>VIP {level}</span>
+  );
+}
+
+// ─── Back Header ──────────────────────────────────────────────────────────────
+function BackHeader({
+  title, onBack, dark = false,
+}: { title: string; onBack: () => void; dark?: boolean }) {
+  return (
+    <div style={{
+      height: 54,
+      background: dark
+        ? `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`
+        : C.white,
+      display: "flex", alignItems: "center", padding: "0 16px",
+      borderBottom: dark ? "none" : `1px solid ${C.border}`,
+      flexShrink: 0,
+    }}>
+      <button onClick={onBack} style={{ background: "none", border: "none", color: dark ? "#fff" : C.text, cursor: "pointer", padding: 4, marginRight: 8 }}>
+        <ChevronLeft size={24} />
+      </button>
+      <span style={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: 16, color: dark ? "#fff" : C.text, marginRight: 36 }}>
+        {title}
+      </span>
+    </div>
+  );
+}
+
+// ─── Activity Ticker ──────────────────────────────────────────────────────────
+function ActivityTicker() {
+  const [idx, setIdx] = useState(0);
+  const items = [
+    "J*****7 successful withdrawal 479.31 USDT",
+    "M*****2 completed order +1,230.00 USDT",
+    "A*****9 grab order commission +85.40 USDT",
+    "K*****5 withdrawn 320.00 USDT",
+    "Z*****1 successful recharge 756.80 USDT",
+  ];
+  useEffect(() => {
+    const t = setInterval(() => setIdx(i => (i + 1) % items.length), 3000);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div style={{
+      background: C.white, margin: "0 12px 10px",
+      borderRadius: 8, padding: "9px 12px",
+      display: "flex", alignItems: "center", gap: 8,
+      border: `1px solid ${C.border}`,
+    }}>
+      <div style={{
+        width: 28, height: 28, borderRadius: "50%",
+        background: C.orange,
+        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+      }}>
+        <User size={15} color="#fff" />
+      </div>
+      <div style={{ flex: 1, overflow: "hidden" }}>
+        <div style={{ fontSize: 12, color: C.textMid, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {items[idx]}
+        </div>
+      </div>
+      <Bell size={14} color={C.orange} />
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HOME SCREEN
+// ═══════════════════════════════════════════════════════════════════════════════
+function HomeScreen({ onNavigate }: { onNavigate: (sub: SubPage) => void }) {
+  const quickActions = [
+    { label: "Recharge",   icon: <ArrowDownToLine size={22} color={C.orange} />, page: "deposit"  as SubPage },
+    { label: "Withdrawal", icon: <ArrowUpFromLine  size={22} color={C.orange} />, page: "withdraw" as SubPage },
+    { label: "Teams",      icon: <Users            size={22} color={C.orange} />, page: "teams"    as SubPage },
+    { label: "Invitation", icon: <Mail             size={22} color={C.orange} />, page: "invite"   as SubPage },
+  ];
+  const platformCards = [
+    { title: "Platform profile",    desc: "About our platform",     img: `${BASE}a1.png`, color: "#e8f4fd" },
+    { title: "Platform rules",      desc: "Policies & rules",       img: `${BASE}a2.png`, color: "#fef3e2" },
+    { title: "Win-win cooperation", desc: "Partner with us",        img: `${BASE}a3.png`, color: "#f0fdf4" },
+    { title: "Instructions for use",desc: "How to get started",     img: `${BASE}a4.png`, color: "#fdf4ff" },
+  ];
+
+  return (
+    <div style={{ flex: 1, overflowY: "auto", paddingBottom: 80 }}>
+      {/* Top bar */}
+      <div style={{
+        background: C.white, padding: "10px 16px",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        borderBottom: `1px solid ${C.border}`,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <PentagonLogo size={34} />
+          <span style={{ fontWeight: 700, fontSize: 16, color: C.text }}>Wallet</span>
+        </div>
+        <Bell size={22} color={C.textMid} />
+      </div>
+
+      {/* Quick actions */}
+      <div style={{
+        background: C.white, margin: "10px 12px", borderRadius: 12,
+        padding: "16px 8px",
+        display: "flex", justifyContent: "space-around",
+        boxShadow: "0 1px 6px rgba(0,0,0,0.06)",
+      }}>
+        {quickActions.map(a => (
+          <button key={a.label} onClick={() => onNavigate(a.page)} style={{
+            background: "none", border: "none", cursor: "pointer",
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+          }}>
+            <div style={{
+              width: 48, height: 48, borderRadius: 12,
+              background: C.orangeLight, border: `1px solid ${C.border}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>{a.icon}</div>
+            <span style={{ fontSize: 12, color: C.textMid }}>{a.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Ticker */}
+      <ActivityTicker />
+
+      {/* Platform introduction */}
+      <div style={{ padding: "4px 12px 8px" }}>
+        <div style={{ fontWeight: 600, fontSize: 15, color: C.text, marginBottom: 10 }}>
+          Platform introduction
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          {platformCards.map(card => (
+            <div key={card.title} style={{
+              borderRadius: 10, overflow: "hidden", background: C.white,
+              boxShadow: "0 1px 6px rgba(0,0,0,0.07)", cursor: "pointer",
+            }}>
+              <div style={{ height: 90, background: card.color, overflow: "hidden" }}>
+                <img src={card.img} alt={card.title}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+              </div>
+              <div style={{ padding: "8px 10px" }}>
+                <div style={{ fontWeight: 600, fontSize: 12, color: C.text }}>{card.title}</div>
+                <div style={{ fontSize: 11, color: C.textLight, marginTop: 2 }}>{card.desc}</div>
+              </div>
             </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SERVICE SCREEN
+// ═══════════════════════════════════════════════════════════════════════════════
+function ServiceScreen() {
+  return (
+    <div style={{ flex: 1, overflowY: "auto", paddingBottom: 80 }}>
+      <div style={{
+        background: "linear-gradient(135deg, #f7d4be 0%, #f5b8d2 100%)",
+        padding: "28px 20px 40px", textAlign: "center",
+      }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: "#5a2d3e", marginBottom: 4 }}>
+          Customer Service Center
+        </div>
+        <div style={{ fontSize: 12, color: "#7a4a58", marginBottom: 2 }}>Online customer service time (12:00–24:00)</div>
+        <div style={{ fontSize: 12, color: "#7a4a58" }}>(07:00–23:00 UK)</div>
+        <div style={{ marginTop: 20, display: "flex", justifyContent: "center" }}>
+          <div style={{
+            width: 90, height: 90, borderRadius: "50%",
+            background: "rgba(255,255,255,0.7)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <Headphones size={48} color="#c85a7a" />
+          </div>
+        </div>
+      </div>
+      <div style={{ background: C.white, margin: "12px 12px 0", borderRadius: 10, overflow: "hidden" }}>
+        {[
+          { icon: <MessageCircle size={18} color={C.orange} />, label: "Online customer service" },
+          { icon: <HelpCircle    size={18} color={C.orange} />, label: "Help" },
+        ].map((item, i) => (
+          <div key={item.label}>
+            {i > 0 && <div style={{ height: 1, background: C.border, margin: "0 16px" }} />}
+            <button style={{
+              width: "100%", background: "none", border: "none",
+              display: "flex", alignItems: "center", gap: 12,
+              padding: "16px 16px", cursor: "pointer",
+            }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: 8, background: C.orangeLight,
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>{item.icon}</div>
+              <span style={{ flex: 1, textAlign: "left", fontSize: 14, color: C.text }}>{item.label}</span>
+              <ChevronRight size={16} color={C.textLight} />
+            </button>
+          </div>
+        ))}
+      </div>
+      <div style={{ padding: 16, textAlign: "center", fontSize: 12, color: C.textLight }}>
+        We are always here to help you
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MENU SCREEN
+// ═══════════════════════════════════════════════════════════════════════════════
+type VipLevel = "all" | "1" | "2" | "3";
+
+function MenuScreen({ onTask }: { onTask: (platform: string) => void }) {
+  const [filter, setFilter] = useState<VipLevel>("all");
+
+  const platforms = [
+    { id: "amazon",     name: "Amazon",     iconColor: "#FF9900", vip: 1, range: "20 – 498 USDT",  commission: "4%"  },
+    { id: "alibaba",    name: "Alibaba",    iconColor: "#FF6A00", vip: 2, range: "499 – 899 USDT", commission: "8%"  },
+    { id: "aliexpress", name: "Aliexpress", iconColor: "#e74c3c", vip: 3, range: "≥ 899 USDT",     commission: "12%" },
+  ];
+
+  const tabs: { key: VipLevel; label: string }[] = [
+    { key: "all", label: "All" },
+    { key: "1",   label: "VIP 1" },
+    { key: "2",   label: "VIP 2" },
+    { key: "3",   label: "VIP 3" },
+  ];
+
+  const filtered = filter === "all" ? platforms : platforms.filter(p => String(p.vip) === filter);
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", paddingBottom: 80 }}>
+      {/* Header + tabs */}
+      <div style={{ background: C.white, borderBottom: `1px solid ${C.border}`, padding: "14px 16px 0" }}>
+        <div style={{ fontWeight: 700, fontSize: 18, color: C.text, marginBottom: 12 }}>Menu</div>
+        <div style={{ display: "flex", gap: 4 }}>
+          {tabs.map(t => (
+            <button key={t.key} onClick={() => setFilter(t.key)} style={{
+              border: "none", cursor: "pointer",
+              padding: "6px 14px",
+              background: filter === t.key ? C.orange : "transparent",
+              color: filter === t.key ? "#fff" : C.textMid,
+              borderRadius: 20,
+              fontSize: 13, fontWeight: filter === t.key ? 600 : 400,
+            }}>{t.label}</button>
+          ))}
+        </div>
+        <div style={{ height: 1, background: C.border, marginTop: 10 }} />
+      </div>
+
+      {/* List */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
+        {filtered.map(p => (
+          <button key={p.id} onClick={() => onTask(p.id)} style={{
+            width: "100%", background: C.white, border: "none", borderRadius: 12,
+            padding: "14px 14px", marginBottom: 10, cursor: "pointer",
+            boxShadow: "0 1px 6px rgba(0,0,0,0.07)",
+            display: "flex", alignItems: "center", gap: 12, textAlign: "left",
+          }}>
+            <div style={{
+              width: 50, height: 50, borderRadius: 10,
+              background: C.orangeLight, border: `1px solid ${C.border}`,
+              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            }}>
+              <ShoppingBag size={22} color={p.iconColor} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
+                <span style={{ fontWeight: 700, fontSize: 15, color: C.text }}>{p.name}</span>
+                <VipBadge level={p.vip} />
+              </div>
+              <div style={{ fontSize: 12, color: C.textMid }}>Available balance: {p.range}</div>
+              <div style={{ fontSize: 12, color: C.textMid, marginTop: 2 }}>
+                Commissions:{" "}
+                <span style={{ color: C.red, fontWeight: 700, fontSize: 13, background: "#fee2e2", padding: "1px 6px", borderRadius: 4 }}>
+                  {p.commission}
+                </span>
+              </div>
+            </div>
+            <ChevronRight size={16} color={C.textLight} />
+          </button>
+        ))}
+        <div style={{ textAlign: "center", fontSize: 12, color: C.textLight, paddingTop: 4 }}>No more</div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TASK DETAIL SCREEN
+// ═══════════════════════════════════════════════════════════════════════════════
+function TaskDetailScreen({ platform, onBack }: { platform: string; onBack: () => void }) {
+  const [grabbed, setGrabbed] = useState(false);
+  const names: Record<string, string> = { amazon: "Amazon", alibaba: "Alibaba", aliexpress: "Aliexpress" };
+  const rates: Record<string, string> = { amazon: "4", alibaba: "8", aliexpress: "12" };
+
+  const stats = [
+    { label: "Today's Times",               value: "0"    },
+    { label: "Today's commission",           value: "0.00" },
+    { label: "Cash gap between tasks",       value: "0.00" },
+    { label: "Yesterday's buy commission",   value: "0.00" },
+    { label: "Yesterday's team commission",  value: "0.00" },
+    { label: "Money frozen in accounts",     value: "0.00" },
+  ];
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+      {/* Orange header */}
+      <div style={{ background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`, flexShrink: 0 }}>
+        <div style={{ height: 54, display: "flex", alignItems: "center", padding: "0 16px" }}>
+          <button onClick={onBack} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", padding: 4, marginRight: 8 }}>
+            <ChevronLeft size={24} />
+          </button>
+          <span style={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: 16, color: "#fff", marginRight: 36 }}>
+            {names[platform]}
+          </span>
+        </div>
+        <div style={{ padding: "10px 20px 24px", textAlign: "center" }}>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginBottom: 4 }}>Account Balance</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: "#fff" }}>
+            0 <span style={{ fontSize: 14, fontWeight: 400 }}>USDT</span>
+          </div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 4 }}>
+            Commission Rate: <strong>{rates[platform]}%</strong>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 12px 80px" }}>
+        {/* Stats grid */}
+        <div style={{ background: C.white, borderRadius: 12, marginBottom: 12, boxShadow: "0 1px 6px rgba(0,0,0,0.07)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+            {stats.map((s, i) => (
+              <div key={s.label} style={{
+                padding: "14px 16px",
+                borderBottom: i < 4 ? `1px solid ${C.border}` : "none",
+                borderRight: i % 2 === 0 ? `1px solid ${C.border}` : "none",
+              }}>
+                <div style={{ fontSize: 11, color: C.textLight, marginBottom: 4 }}>{s.label}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>{s.value}</div>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Page Content */}
-        <div
-          className="flex-1 overflow-hidden"
-          style={{ opacity: isAnimating ? 0 : 1, transition: "opacity 0.18s ease" }}
-        >
-          {currentPage === "login"   && <LoginScreen   onLogin={() => navigate("home")} />}
-          {currentPage === "home"    && <HomeScreen    onNavigate={navigate} />}
-          {currentPage === "service" && <WalletScreen  />}
-          {currentPage === "menu"    && <TeamScreen    />}
-          {currentPage === "records" && <RecordsScreen />}
-          {currentPage === "profile" && (
-            <ProfileScreen
-              onSettings={() => navigate("settings")}
-              onLogout={() => navigate("login")}
-            />
-          )}
-          {currentPage === "settings" && (
-            <SettingsScreen
-              onBack={() => navigate("profile")}
-              onLogout={() => navigate("login")}
-            />
-          )}
-        </div>
+        {!grabbed ? (
+          <button onClick={() => setGrabbed(true)} style={{
+            width: "100%",
+            background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
+            border: "none", borderRadius: 10, padding: "16px 0",
+            fontSize: 16, fontWeight: 700, color: "#fff", cursor: "pointer",
+            boxShadow: `0 4px 16px rgba(245,161,0,0.4)`,
+          }}>Grab the order immediately</button>
+        ) : (
+          <div style={{ background: C.white, borderRadius: 10, padding: 16, boxShadow: "0 1px 6px rgba(0,0,0,0.07)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+              <CheckCircle2 size={20} color={C.green} />
+              <span style={{ fontWeight: 600, color: C.text }}>Order grabbed!</span>
+            </div>
+            <div style={{ background: C.bg, borderRadius: 8, padding: "10px 12px", fontSize: 12, color: C.textMid, marginBottom: 12 }}>
+              <div style={{ marginBottom: 4 }}>Order ID: <span style={{ color: C.orange, fontWeight: 600 }}>#ORD2026{Math.floor(Math.random() * 90000 + 10000)}</span></div>
+              <div style={{ marginBottom: 4 }}>Amount: <span style={{ color: C.text, fontWeight: 600 }}>100.00 USDT</span></div>
+              <div>Commission: <span style={{ color: C.green, fontWeight: 600 }}>{rates[platform]}% = {rates[platform]}.00 USDT</span></div>
+            </div>
+            <button onClick={() => setGrabbed(false)} style={{
+              width: "100%",
+              background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
+              border: "none", borderRadius: 8, padding: "12px 0",
+              fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer",
+            }}>Submit Order</button>
+          </div>
+        )}
 
-        {/* Bottom Navigation */}
-        {isLoggedIn && currentPage !== "settings" && (
-          <BottomNav currentPage={currentPage} onNavigate={navigate} />
+        <div style={{ fontSize: 12, color: C.textLight, textAlign: "center", marginTop: 12 }}>
+          Hint: Ensure your account balance meets the minimum requirement before grabbing orders.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RECORD SCREEN
+// ═══════════════════════════════════════════════════════════════════════════════
+function RecordScreen() {
+  const [tab, setTab] = useState<"incomplete" | "complete">("incomplete");
+
+  const orders = [
+    { id: "ORD20261204", platform: "Amazon", amount: "100.00", commission: "4.00", time: "2026-06-09 14:23" },
+  ];
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, paddingBottom: 80 }}>
+      <div style={{ background: C.white, borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
+        <div style={{ padding: "14px 16px 0", textAlign: "center" }}>
+          <div style={{ fontWeight: 700, fontSize: 18, color: C.text, marginBottom: 12 }}>Record</div>
+        </div>
+        <div style={{ display: "flex", padding: "0 20px" }}>
+          {(["incomplete","complete"] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)} style={{
+              flex: 1, border: "none", background: "none", cursor: "pointer",
+              padding: "10px 0",
+              color: tab === t ? C.orange : C.textMid,
+              fontWeight: tab === t ? 700 : 400,
+              fontSize: 14,
+              borderBottom: tab === t ? `2px solid ${C.orange}` : "2px solid transparent",
+            }}>{t === "incomplete" ? "Incomplete" : "Complete"}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 12px" }}>
+        {tab === "incomplete" && orders.map(order => (
+          <div key={order.id} style={{
+            background: C.white, borderRadius: 12, padding: 16,
+            boxShadow: "0 1px 6px rgba(0,0,0,0.07)", marginBottom: 10,
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <span style={{ fontSize: 12, color: C.textLight }}>{order.time}</span>
+              <span style={{ background: "#fef3e2", color: C.orange, fontSize: 11, padding: "2px 8px", borderRadius: 10, fontWeight: 600 }}>
+                Pending
+              </span>
+            </div>
+            {[
+              { label: "Order ID",    val: order.id },
+              { label: "Platform",    val: order.platform },
+              { label: "Amount",      val: `${order.amount} USDT` },
+              { label: "Commission",  val: `+${order.commission} USDT`, green: true },
+            ].map(row => (
+              <div key={row.label} style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ fontSize: 13, color: C.textMid }}>{row.label}</span>
+                <span style={{ fontSize: 13, color: row.green ? C.green : C.text, fontWeight: row.green ? 600 : 400 }}>{row.val}</span>
+              </div>
+            ))}
+            <button style={{
+              width: "100%", marginTop: 10,
+              background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
+              border: "none", borderRadius: 8, padding: "11px 0",
+              fontSize: 14, fontWeight: 600, color: "#fff", cursor: "pointer",
+            }}>Submit order</button>
+          </div>
+        ))}
+
+        {(tab === "complete" || (tab === "incomplete" && orders.length === 0)) && (
+          <div style={{ textAlign: "center", padding: "40px 20px", color: C.textLight }}>
+            <ClipboardList size={48} color={C.border} style={{ marginBottom: 12 }} />
+            <div style={{ fontSize: 14 }}>No more</div>
+          </div>
         )}
       </div>
     </div>
   );
 }
 
-/* ─────────────────────────────── Bottom Nav ─────────────────────────────── */
+// ═══════════════════════════════════════════════════════════════════════════════
+// MINE SCREEN
+// ═══════════════════════════════════════════════════════════════════════════════
+function MineScreen({ onNavigate }: { onNavigate: (sub: SubPage) => void }) {
+  const quickActions = [
+    { label: "Teams",            icon: <Users       size={22} color={C.orange} />, bg: "#fff8e7", page: "teams"         as SubPage },
+    { label: "Record",           icon: <FileText    size={22} color={C.green}  />, bg: "#f0fdf4", page: "deposit-records" as SubPage },
+    { label: "Wallet management",icon: <BarChart2   size={22} color={C.red}    />, bg: "#fef2f2", page: "wallet-mgmt"   as SubPage },
+    { label: "Invite friends",   icon: <Mail        size={22} color={C.blue}   />, bg: "#eff6ff", page: "invite"        as SubPage },
+  ];
+  const menuItems = [
+    { label: "Profile",            icon: <User          size={18} color={C.orange}   />, bg: "#fff8e7", page: "profile"          as SubPage },
+    { label: "Deposit records",    icon: <ArrowDownToLine size={18} color={C.green}  />, bg: "#f0fdf4", page: "deposit-records"  as SubPage },
+    { label: "Withdrawal records", icon: <ArrowUpFromLine size={18} color={C.blue}   />, bg: "#eff6ff", page: "withdraw-records" as SubPage },
+    { label: "Setting",            icon: <Globe         size={18} color={C.textMid}  />, bg: "#f4f5f7", page: "setting"          as SubPage },
+  ];
 
-const NAV_ITEMS: { id: Page; icon: React.ComponentType<any>; label: string }[] = [
-  { id: "home",    icon: HomeIcon,     label: "Home"    },
-  { id: "service", icon: Briefcase,    label: "Service" },
-  { id: "menu",    icon: Grid3X3,      label: "Menu"    },
-  { id: "records", icon: ClipboardList,label: "Record"  },
-  { id: "profile", icon: User,         label: "Mine"    },
-];
-
-function BottomNav({ currentPage, onNavigate }: { currentPage: Page; onNavigate: (p: Page) => void }) {
   return (
-    <div
-      className="w-full bg-white shrink-0 flex justify-around items-end pt-2 pb-6 px-2"
-      style={{ borderTop: "1px solid rgba(0,0,0,0.06)", boxShadow: "0 -8px 24px rgba(0,0,0,0.04)" }}
-    >
-      {NAV_ITEMS.map(({ id, icon: Icon, label }) => {
-        const active = currentPage === id;
-        return (
-          <button
-            key={id}
-            onClick={() => onNavigate(id)}
-            className="flex flex-col items-center gap-1 w-16 relative pt-1"
-          >
-            {active && (
-              <div
-                className="absolute -top-2 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-full"
-                style={{ background: "#6d4c57" }}
+    <div style={{ flex: 1, overflowY: "auto", background: C.bg, paddingBottom: 80 }}>
+      {/* Wine gradient header */}
+      <div style={{
+        background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`,
+        padding: "24px 20px 36px",
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+      }}>
+        <div style={{
+          width: 70, height: 70, borderRadius: "50%",
+          background: "rgba(255,255,255,0.15)",
+          border: "3px solid rgba(255,255,255,0.5)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <PentagonLogo size={50} />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontWeight: 700, fontSize: 16, color: "#fff" }}>Hanif8989</span>
+          <VipBadge level={0} />
+        </div>
+        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.75)" }}>
+          Invitation code: 925886
+        </div>
+      </div>
+
+      {/* Balance card (overlaps header) */}
+      <div style={{
+        margin: "-20px 12px 0", background: C.white,
+        borderRadius: 12, padding: 16,
+        boxShadow: "0 2px 12px rgba(0,0,0,0.10)",
+      }}>
+        <div style={{ fontSize: 12, color: C.textLight, marginBottom: 6 }}>My Account</div>
+        <div style={{ fontSize: 26, fontWeight: 800, color: C.text, marginBottom: 14 }}>
+          0.00 <span style={{ fontSize: 14, fontWeight: 400, color: C.textMid }}>USDT</span>
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={() => onNavigate("deposit")} style={{
+            flex: 1,
+            background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
+            border: "none", borderRadius: 8, padding: "12px 0",
+            fontSize: 14, fontWeight: 600, color: "#fff", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+          }}>
+            <ArrowDownToLine size={16} /> Deposit
+          </button>
+          <button onClick={() => onNavigate("withdraw")} style={{
+            flex: 1, background: C.white,
+            border: `1.5px solid ${C.orange}`, borderRadius: 8, padding: "12px 0",
+            fontSize: 14, fontWeight: 600, color: C.orange, cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+          }}>
+            <ArrowUpFromLine size={16} /> Withdrawal
+          </button>
+        </div>
+      </div>
+
+      {/* Quick actions */}
+      <div style={{
+        background: C.white, margin: "10px 12px", borderRadius: 12,
+        padding: "16px 8px",
+        display: "flex", justifyContent: "space-around",
+        boxShadow: "0 1px 6px rgba(0,0,0,0.06)",
+      }}>
+        {quickActions.map(a => (
+          <button key={a.label} onClick={() => onNavigate(a.page)} style={{
+            background: "none", border: "none", cursor: "pointer",
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+          }}>
+            <div style={{
+              width: 46, height: 46, borderRadius: 12, background: a.bg,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>{a.icon}</div>
+            <span style={{ fontSize: 11, color: C.textMid, maxWidth: 58, textAlign: "center", lineHeight: 1.3 }}>{a.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Menu list */}
+      <div style={{ background: C.white, margin: "0 12px", borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+        {menuItems.map((item, i) => (
+          <div key={item.label}>
+            {i > 0 && <div style={{ height: 1, background: C.border, margin: "0 16px" }} />}
+            <button onClick={() => onNavigate(item.page)} style={{
+              width: "100%", background: "none", border: "none",
+              display: "flex", alignItems: "center", gap: 12,
+              padding: "14px 16px", cursor: "pointer",
+            }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: 8, background: item.bg,
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>{item.icon}</div>
+              <span style={{ flex: 1, textAlign: "left", fontSize: 14, color: C.text }}>{item.label}</span>
+              <ChevronRight size={16} color={C.textLight} />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DEPOSIT SCREEN
+// ═══════════════════════════════════════════════════════════════════════════════
+function DepositScreen({ onBack, onQR }: { onBack: () => void; onQR: () => void }) {
+  const [amount, setAmount] = useState("");
+  const [network, setNetwork] = useState("TRC-20");
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+      <BackHeader title="Deposit" onBack={onBack} />
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 12px 80px" }}>
+        {/* Payment method */}
+        <div style={{ background: C.white, borderRadius: 10, marginBottom: 10, padding: "12px 16px" }}>
+          <div style={{ fontSize: 12, color: C.textLight, marginBottom: 10 }}>Payment method</div>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 12,
+            background: C.orangeLight, borderRadius: 8, padding: "10px 12px",
+            border: `1px solid ${C.orange}`,
+          }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 8, background: "#3b82f6",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <span style={{ color: "#fff", fontWeight: 800, fontSize: 14 }}>₮</span>
+            </div>
+            <span style={{ fontWeight: 600, color: C.text }}>USDT</span>
+            <Check size={16} color={C.orange} style={{ marginLeft: "auto" }} />
+          </div>
+        </div>
+
+        {/* Network selector */}
+        <div style={{ background: C.white, borderRadius: 10, marginBottom: 10, padding: "12px 16px" }}>
+          <div style={{ fontSize: 12, color: C.textLight, marginBottom: 10 }}>Select the protocol to use</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {["TRC-20", "ERC-20", "BEP-20"].map(n => (
+              <button key={n} onClick={() => setNetwork(n)} style={{
+                flex: 1, border: `1.5px solid ${network === n ? C.orange : C.border}`,
+                borderRadius: 8, padding: "8px 0",
+                background: network === n ? C.orangeLight : C.white,
+                color: network === n ? C.orange : C.textMid,
+                fontWeight: network === n ? 700 : 400,
+                fontSize: 13, cursor: "pointer",
+              }}>{n}</button>
+            ))}
+          </div>
+        </div>
+
+        {/* Amount */}
+        <div style={{ background: C.white, borderRadius: 10, marginBottom: 10, padding: "12px 16px" }}>
+          <div style={{ fontSize: 12, color: C.textLight, marginBottom: 8 }}>Deposit amount</div>
+          <div style={{
+            display: "flex", alignItems: "center",
+            border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "10px 12px",
+          }}>
+            <input
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              placeholder="Please enter the amount"
+              style={{ flex: 1, border: "none", outline: "none", fontSize: 14, color: C.text, background: "transparent" }}
+            />
+            <span style={{ fontSize: 13, color: C.textMid }}>USDT</span>
+          </div>
+          <div style={{ marginTop: 8, fontSize: 12, color: C.textMid }}>
+            Estimated payment: <span style={{ color: C.orange }}>{amount || "0"} USDT</span>
+          </div>
+          <div style={{ fontSize: 12, color: C.textMid }}>Reference rate: 1 USDT = 1 USDT</div>
+        </div>
+
+        <button onClick={() => amount && onQR()} style={{
+          width: "100%",
+          background: amount
+            ? `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`
+            : "#ccc",
+          border: "none", borderRadius: 10, padding: "14px 0",
+          fontSize: 15, fontWeight: 700, color: "#fff", cursor: "pointer",
+        }}>Deposit now</button>
+        {!amount && (
+          <div style={{ fontSize: 12, color: C.textLight, textAlign: "center", marginTop: 8 }}>
+            Please enter an amount to continue
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DEPOSIT QR SCREEN
+// ═══════════════════════════════════════════════════════════════════════════════
+const DEMO_ADDRESS = "TDqfQ6tLFGGArRERHvvR3z3JF5QKekUvM1";
+
+function DepositQRScreen({ onBack }: { onBack: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(DEMO_ADDRESS).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Minimal QR visual
+  const qrCells = Array.from({ length: 100 }, (_, i) => {
+    const r = Math.floor(i / 10), col = i % 10;
+    const corner = (r < 3 && col < 3) || (r < 3 && col > 6) || (r > 6 && col < 3);
+    const mid = [44, 45, 54, 55, 33, 22, 66, 77, 38, 61].includes(i);
+    return corner || mid;
+  });
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+      <BackHeader title="Deposit" onBack={onBack} />
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 12px 80px" }}>
+        {/* Amount + progress */}
+        <div style={{ background: C.white, borderRadius: 10, padding: 16, marginBottom: 10, textAlign: "center" }}>
+          <div style={{ fontSize: 12, color: C.textLight, marginBottom: 6 }}>Amount</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: C.orange, marginBottom: 4 }}>100</div>
+          <div style={{ fontSize: 13, color: C.textMid, marginBottom: 12 }}>Network: TRON (TRC-20)</div>
+          <div style={{ height: 4, background: C.border, borderRadius: 2 }}>
+            <div style={{ height: "100%", width: "20%", background: C.orange, borderRadius: 2 }} />
+          </div>
+          <div style={{ fontSize: 11, color: C.textLight, marginTop: 6 }}>Waiting for payment...</div>
+        </div>
+
+        {/* QR + address */}
+        <div style={{ background: C.white, borderRadius: 10, padding: 16, marginBottom: 10 }}>
+          <div style={{ fontSize: 12, color: C.orange, fontWeight: 600, marginBottom: 12 }}>One Time Address:</div>
+          {/* QR */}
+          <div style={{
+            width: 160, height: 160, margin: "0 auto 16px",
+            border: `2px solid ${C.border}`, borderRadius: 8, padding: 8,
+            display: "grid", gridTemplateColumns: "repeat(10,1fr)", gap: 1.5,
+          }}>
+            {qrCells.map((on, i) => (
+              <div key={i} style={{ background: on ? "#000" : "transparent", borderRadius: 1 }} />
+            ))}
+          </div>
+          {/* Address box */}
+          <div style={{
+            border: `1.5px solid ${C.red}`, borderRadius: 8, padding: "10px 12px",
+            display: "flex", alignItems: "center", gap: 8,
+          }}>
+            <span style={{ flex: 1, fontSize: 11, color: C.text, wordBreak: "break-all", fontFamily: "monospace" }}>
+              {DEMO_ADDRESS}
+            </span>
+            <button onClick={handleCopy} style={{ border: "none", background: "none", cursor: "pointer", padding: 4 }}>
+              {copied ? <Check size={18} color={C.green} /> : <Copy size={18} color={C.orange} />}
+            </button>
+          </div>
+        </div>
+
+        {/* Tips */}
+        <div style={{ background: C.white, borderRadius: 10, padding: "14px 16px" }}>
+          <div style={{ fontWeight: 600, fontSize: 13, color: C.text, marginBottom: 10 }}>Tips</div>
+          {[
+            "This is a one-time address. Do not reuse it.",
+            "Minimum deposit amount: 10 USDT.",
+            "Funds typically arrive within 1–2 minutes.",
+          ].map((tip, i) => (
+            <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6, fontSize: 12, color: C.textMid }}>
+              <span style={{ color: C.orange, fontWeight: 700 }}>{i + 1}.</span>
+              <span>{tip}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WITHDRAW SCREEN
+// ═══════════════════════════════════════════════════════════════════════════════
+const FEE_RATE = 0.15;
+
+function WithdrawScreen({ onBack, onAddWallet }: { onBack: () => void; onAddWallet: () => void }) {
+  const [showPwdPopup, setShowPwdPopup] = useState(true);
+  const [amount, setAmount] = useState("");
+  const [fundPwd, setFundPwd] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  if (success) {
+    return (
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+        <BackHeader title="Withdrawal" onBack={onBack} />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <CheckCircle2 size={64} color={C.green} style={{ marginBottom: 16 }} />
+          <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 8 }}>Withdrawal Submitted</div>
+          <div style={{ fontSize: 13, color: C.textMid, textAlign: "center", marginBottom: 24 }}>
+            Your request has been submitted and is being processed.
+          </div>
+          <button onClick={onBack} style={{
+            background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
+            border: "none", borderRadius: 10, padding: "14px 40px",
+            fontSize: 15, fontWeight: 700, color: "#fff", cursor: "pointer",
+          }}>Done</button>
+        </div>
+      </div>
+    );
+  }
+
+  const fee = amount ? (parseFloat(amount) * FEE_RATE).toFixed(2) : "0.00";
+  const receive = amount ? (parseFloat(amount) * (1 - FEE_RATE)).toFixed(2) : "0.00";
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, position: "relative" }}>
+      <BackHeader title="Withdrawal" onBack={onBack} />
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 12px 80px" }}>
+        {/* Virtual currency tab */}
+        <div style={{ background: C.white, borderRadius: 10, marginBottom: 10, padding: "12px 16px" }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+            <div style={{
+              padding: "6px 16px",
+              background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`,
+              borderRadius: 20, fontSize: 13, color: "#fff", fontWeight: 600,
+              position: "relative",
+            }}>
+              Virtual currency
+              <div style={{
+                position: "absolute", top: -4, right: -4, width: 14, height: 14,
+                borderRadius: "50%", background: C.orange,
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <Check size={9} color="#fff" />
+              </div>
+            </div>
+          </div>
+          <button onClick={onAddWallet} style={{
+            width: "100%", border: `1.5px dashed ${C.border}`, borderRadius: 8, padding: "12px 0",
+            background: "none", cursor: "pointer", fontSize: 13,
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+          }}>
+            <Plus size={16} color={C.orange} />
+            <span style={{ color: C.orange }}>+ Add e-wallet</span>
+          </button>
+          <div style={{ textAlign: "center", marginTop: 10, fontSize: 12, color: C.textLight }}>
+            Please bind an electronic wallet for withdrawal
+          </div>
+        </div>
+
+        {/* Withdraw form (available after wallet bound, shown for demo) */}
+        <div style={{ background: C.white, borderRadius: 10, marginBottom: 10, padding: "14px 16px" }}>
+          <div style={{ fontSize: 12, color: C.textLight, marginBottom: 8 }}>Withdrawal amount</div>
+          <div style={{
+            display: "flex", alignItems: "center",
+            border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "10px 12px",
+          }}>
+            <input
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              placeholder="Enter amount"
+              style={{ flex: 1, border: "none", outline: "none", fontSize: 14, color: C.text, background: "transparent" }}
+            />
+            <button onClick={() => setAmount("1000")} style={{
+              border: "none", background: C.orangeLight, borderRadius: 4,
+              padding: "4px 8px", fontSize: 11, color: C.orange, fontWeight: 600, cursor: "pointer",
+            }}>MAX</button>
+          </div>
+          {amount && (
+            <div style={{ marginTop: 10, padding: "10px 12px", background: C.bg, borderRadius: 8, fontSize: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", color: C.textMid, marginBottom: 4 }}>
+                <span>Fee (15%)</span>
+                <span style={{ color: C.red }}>−{fee} USDT</span>
+              </div>
+              <div style={{ height: 1, background: C.border, margin: "6px 0" }} />
+              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 600, color: C.text }}>
+                <span>You receive</span>
+                <span style={{ color: C.green }}>{receive} USDT</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div style={{ background: C.white, borderRadius: 10, marginBottom: 10, padding: "14px 16px" }}>
+          <div style={{ fontSize: 12, color: C.textLight, marginBottom: 8 }}>Fund password</div>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 8,
+            border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "10px 12px",
+          }}>
+            <Lock size={16} color={C.textLight} />
+            <input
+              value={fundPwd}
+              onChange={e => setFundPwd(e.target.value)}
+              placeholder="Enter fund password"
+              type={showPwd ? "text" : "password"}
+              style={{ flex: 1, border: "none", outline: "none", fontSize: 14, color: C.text, background: "transparent" }}
+            />
+            <button onClick={() => setShowPwd(v => !v)} style={{ border: "none", background: "none", cursor: "pointer" }}>
+              {showPwd ? <EyeOff size={16} color={C.textLight} /> : <Eye size={16} color={C.textLight} />}
+            </button>
+          </div>
+        </div>
+
+        <button onClick={() => amount && fundPwd && setSuccess(true)} style={{
+          width: "100%",
+          background: (amount && fundPwd)
+            ? `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`
+            : "#ccc",
+          border: "none", borderRadius: 10, padding: "14px 0",
+          fontSize: 15, fontWeight: 700, color: "#fff", cursor: "pointer",
+        }}>Withdraw</button>
+      </div>
+
+      {/* Fund password not set popup */}
+      {showPwdPopup && (
+        <div style={{
+          position: "absolute", inset: 0,
+          background: "rgba(0,0,0,0.5)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 100, padding: 24,
+        }}>
+          <div style={{ background: C.white, borderRadius: 12, padding: 24, maxWidth: 300, width: "100%" }}>
+            <div style={{ fontWeight: 700, fontSize: 16, color: C.text, marginBottom: 8 }}>Withdrawal password</div>
+            <div style={{ fontSize: 13, color: C.textMid, marginBottom: 20 }}>
+              Sorry! You have not set a withdrawal password. Please set it first to proceed.
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => { setShowPwdPopup(false); onBack(); }} style={{
+                flex: 1, border: `1.5px solid ${C.border}`, borderRadius: 8,
+                padding: "10px 0", background: "none", cursor: "pointer",
+                fontSize: 14, color: C.textMid,
+              }}>Cancel</button>
+              <button onClick={() => setShowPwdPopup(false)} style={{
+                flex: 1,
+                background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`,
+                border: "none", borderRadius: 8, padding: "10px 0",
+                cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#fff",
+              }}>To set</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ADD WALLET SCREEN
+// ═══════════════════════════════════════════════════════════════════════════════
+function AddWalletScreen({ onBack }: { onBack: () => void }) {
+  const [walletName, setWalletName] = useState("");
+  const [protocol, setProtocol] = useState("TRC-20");
+  const [address, setAddress] = useState("");
+  const [name, setName] = useState("");
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+      <BackHeader title="Add E-Wallet" onBack={onBack} />
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 12px 80px" }}>
+        <div style={{ background: C.white, borderRadius: 10, overflow: "hidden", marginBottom: 10 }}>
+          {[
+            { label: "Wallet name",    value: walletName, set: setWalletName, placeholder: "Enter wallet name"    },
+            { label: "Names",          value: name,       set: setName,       placeholder: "Enter your name"       },
+            { label: "Wallet address", value: address,    set: setAddress,    placeholder: "Enter wallet address"  },
+          ].map((f, i) => (
+            <div key={f.label}>
+              {i > 0 && <div style={{ height: 1, background: C.border }} />}
+              <div style={{ padding: "12px 16px" }}>
+                <div style={{ fontSize: 12, color: C.textLight, marginBottom: 6 }}>{f.label}</div>
+                <input
+                  value={f.value}
+                  onChange={e => f.set(e.target.value)}
+                  placeholder={f.placeholder}
+                  style={{
+                    width: "100%", border: `1.5px solid ${C.border}`,
+                    borderRadius: 8, padding: "10px 12px",
+                    fontSize: 14, color: C.text, outline: "none", boxSizing: "border-box",
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+          <div style={{ height: 1, background: C.border }} />
+          <div style={{ padding: "12px 16px" }}>
+            <div style={{ fontSize: 12, color: C.textLight, marginBottom: 8 }}>Virtual Currency Protocol</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              {["TRC-20", "ERC-20", "BEP-20"].map(n => (
+                <button key={n} onClick={() => setProtocol(n)} style={{
+                  flex: 1, border: `1.5px solid ${protocol === n ? C.orange : C.border}`,
+                  borderRadius: 8, padding: "8px 0",
+                  background: protocol === n ? C.orangeLight : C.white,
+                  color: protocol === n ? C.orange : C.textMid,
+                  fontWeight: protocol === n ? 700 : 400,
+                  fontSize: 12, cursor: "pointer",
+                }}>{n}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <button style={{
+          width: "100%",
+          background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
+          border: "none", borderRadius: 10, padding: "14px 0",
+          fontSize: 15, fontWeight: 700, color: "#fff", cursor: "pointer", marginBottom: 10,
+        }}>OK</button>
+        <button onClick={onBack} style={{
+          width: "100%", border: "none", background: "none",
+          cursor: "pointer", fontSize: 14, color: C.textMid,
+        }}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TEAMS SCREEN
+// ═══════════════════════════════════════════════════════════════════════════════
+function TeamsScreen({ onBack }: { onBack: () => void }) {
+  const [level, setLevel] = useState(1);
+  const stats = [
+    { label: "Agent Profit",      value: "0.00" },
+    { label: "Total recharge",    value: "0.00" },
+    { label: "Total withdraw",    value: "0.00" },
+    { label: "Order commission",  value: "0.00" },
+    { label: "Newcomers",         value: "0"    },
+    { label: "Activities number", value: "0"    },
+    { label: "Team amount",       value: "0.00" },
+    { label: "Team number",       value: "0"    },
+  ];
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+      <div style={{ background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`, flexShrink: 0 }}>
+        <div style={{ height: 54, display: "flex", alignItems: "center", padding: "0 16px" }}>
+          <button onClick={onBack} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", padding: 4, marginRight: 8 }}>
+            <ChevronLeft size={24} />
+          </button>
+          <span style={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: 16, color: "#fff", marginRight: 36 }}>Team</span>
+        </div>
+        <div style={{ textAlign: "center", marginBottom: 16, padding: "0 20px" }}>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 4 }}>Team amount</div>
+          <div style={{ fontSize: 30, fontWeight: 800, color: "#fff" }}>
+            0.00 <span style={{ fontSize: 14, fontWeight: 400 }}>USDT</span>
+          </div>
+        </div>
+        <div style={{ margin: "0 12px 0", background: "rgba(255,255,255,0.1)", borderRadius: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
+            {stats.map((s, i) => (
+              <div key={s.label} style={{
+                padding: "12px 8px", textAlign: "center",
+                borderRight: i % 4 !== 3 ? "1px solid rgba(255,255,255,0.15)" : "none",
+                borderBottom: i < 4 ? "1px solid rgba(255,255,255,0.15)" : "none",
+              }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{s.value}</div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.65)", lineHeight: 1.3 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ height: 16 }} />
+      </div>
+
+      <div style={{ background: C.white, borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ display: "flex" }}>
+          {[1, 2, 3].map(l => (
+            <button key={l} onClick={() => setLevel(l)} style={{
+              flex: 1, border: "none", background: "none", cursor: "pointer",
+              padding: "12px 0",
+              color: level === l ? C.orange : C.textMid,
+              fontWeight: level === l ? 700 : 400, fontSize: 14,
+              borderBottom: level === l ? `2px solid ${C.orange}` : "2px solid transparent",
+            }}>Level {l}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", color: C.textLight }}>
+        <Users size={48} color={C.border} style={{ marginBottom: 12 }} />
+        <div style={{ fontSize: 14 }}>No data</div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INVITE SCREEN
+// ═══════════════════════════════════════════════════════════════════════════════
+function InviteScreen({ onBack }: { onBack: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const code = "925886";
+  const link = `https://qudaizi.com/#/register?code=${code}`;
+  const handleCopy = () => {
+    navigator.clipboard.writeText(link).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const qrOn = [0,1,2,9,10,18,27,36,45,54,11,20,7,8,16,25,34,63,72,81,62,71,80,70,79,88,69,78,87,40,41,42,49,50,51,31,38,44,53,60,67].map(n => n % 81);
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+      <BackHeader title="Invite Friends" onBack={onBack} />
+      <div style={{ flex: 1, overflowY: "auto", padding: "24px 16px 80px", textAlign: "center" }}>
+        <div style={{ fontSize: 14, color: C.textMid, marginBottom: 6 }}>My invitation code</div>
+        <div style={{ fontSize: 40, fontWeight: 900, color: C.text, letterSpacing: 4, marginBottom: 24 }}>{code}</div>
+
+        {/* QR */}
+        <div style={{
+          width: 200, height: 200, margin: "0 auto 12px",
+          border: `2px solid ${C.border}`, borderRadius: 12, padding: 16,
+          background: C.white,
+          display: "grid", gridTemplateColumns: "repeat(9,1fr)", gap: 2.5,
+        }}>
+          {Array.from({ length: 81 }, (_, i) => {
+            const r = Math.floor(i / 9), col = i % 9;
+            const corner = (r < 3 && col < 3) || (r < 3 && col > 5) || (r > 5 && col < 3);
+            const dot = [40, 30, 32, 48, 50, 22, 58].includes(i);
+            return <div key={i} style={{ background: (corner || dot) ? "#000" : "transparent", borderRadius: 1 }} />;
+          })}
+        </div>
+
+        <div style={{ fontSize: 12, color: C.orange, marginBottom: 24 }}>Long press to save the QR code</div>
+
+        <div style={{
+          background: C.white, borderRadius: 10, padding: "12px 14px",
+          border: `1px solid ${C.border}`, textAlign: "left",
+        }}>
+          <div style={{ fontSize: 12, color: C.textLight, marginBottom: 6 }}>Share link</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ flex: 1, fontSize: 11, color: C.textMid, wordBreak: "break-all" }}>{link}</span>
+            <button onClick={handleCopy} style={{
+              border: "none", background: C.orangeLight, borderRadius: 6,
+              padding: "6px 12px", cursor: "pointer",
+              fontSize: 12, color: C.orange, fontWeight: 600,
+              display: "flex", alignItems: "center", gap: 4, flexShrink: 0,
+            }}>
+              {copied ? <Check size={12} /> : <Copy size={12} />}
+              {copied ? "Copied" : "Copy"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WALLET MANAGEMENT SCREEN
+// ═══════════════════════════════════════════════════════════════════════════════
+function WalletMgmtScreen({ onBack, onAdd }: { onBack: () => void; onAdd: () => void }) {
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+      <BackHeader title="Wallet Management" onBack={onBack} />
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 12px 80px" }}>
+        <div style={{ background: C.white, borderRadius: 10, padding: "12px 16px", marginBottom: 10 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+            <div style={{
+              padding: "6px 16px",
+              background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`,
+              borderRadius: 20, fontSize: 13, color: "#fff", fontWeight: 600,
+            }}>Virtual currency</div>
+          </div>
+          <button onClick={onAdd} style={{
+            width: "100%",
+            background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`,
+            border: "none", borderRadius: 8, padding: "12px 0",
+            fontSize: 14, fontWeight: 600, color: "#fff", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+          }}>
+            <Plus size={16} /> Add e-wallet
+          </button>
+          <div style={{ marginTop: 12, padding: "10px 12px", background: C.orangeLight, borderRadius: 8, fontSize: 12, color: C.orangeDark }}>
+            Tips: Bind at most 1 group accounts.
+          </div>
+        </div>
+        <div style={{ textAlign: "center", padding: "20px 0", fontSize: 12, color: C.textLight }}>No data</div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PROFILE SCREEN
+// ═══════════════════════════════════════════════════════════════════════════════
+function ProfileScreen({ onBack }: { onBack: () => void }) {
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+      <BackHeader title="Profile" onBack={onBack} />
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        <div style={{ background: C.white, borderRadius: 10, margin: "12px 12px", overflow: "hidden" }}>
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "16px 16px", borderBottom: `1px solid ${C.border}`,
+          }}>
+            <span style={{ fontSize: 14, color: C.text }}>Personal Avatar</span>
+            <div style={{
+              width: 48, height: 48, borderRadius: "50%",
+              background: C.bg, border: `1px solid ${C.border}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <PentagonLogo size={36} />
+            </div>
+          </div>
+          {[
+            { label: "Username",        value: "Hanif8989" },
+            { label: "VIP Level",       value: "VIP 0"     },
+            { label: "Phone number",    value: "Not set"   },
+            { label: "Invitation code", value: "925886"    },
+          ].map((item, i) => (
+            <div key={item.label} style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "14px 16px",
+              borderBottom: i < 3 ? `1px solid ${C.border}` : "none",
+            }}>
+              <span style={{ fontSize: 14, color: C.text }}>{item.label}</span>
+              <span style={{ fontSize: 13, color: C.textMid }}>{item.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SIMPLE RECORDS SCREEN
+// ═══════════════════════════════════════════════════════════════════════════════
+function SimpleRecordsScreen({ title, onBack }: { title: string; onBack: () => void }) {
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+      <BackHeader title={title} onBack={onBack} />
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: C.textLight }}>
+        <FileText size={48} color={C.border} style={{ marginBottom: 12 }} />
+        <div style={{ fontSize: 14 }}>No more</div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SETTING SCREEN
+// ═══════════════════════════════════════════════════════════════════════════════
+function SettingScreen({ onBack, onLogout }: { onBack: () => void; onLogout: () => void }) {
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+      <BackHeader title="Setting" onBack={onBack} />
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 12px 80px" }}>
+        <div style={{ background: C.white, borderRadius: 10, overflow: "hidden", marginBottom: 10 }}>
+          <button style={{
+            width: "100%", border: "none", background: "none", cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 12, padding: "14px 16px",
+          }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Globe size={18} color={C.blue} />
+            </div>
+            <span style={{ flex: 1, textAlign: "left", fontSize: 14, color: C.text }}>Language settings</span>
+            <ChevronRight size={16} color={C.textLight} />
+          </button>
+        </div>
+        <button onClick={onLogout} style={{
+          width: "100%", border: "none", background: C.white, cursor: "pointer",
+          borderRadius: 10, padding: "14px 16px",
+          fontSize: 14, fontWeight: 600, color: C.red,
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+        }}>
+          <LogOut size={16} /> Logout
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LOGIN SCREEN
+// ═══════════════════════════════════════════════════════════════════════════════
+function LoginScreen({ onLogin }: { onLogin: () => void }) {
+  const [user, setUser] = useState("");
+  const [pwd, setPwd] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+      <div style={{
+        background: `linear-gradient(160deg, ${C.wine} 0%, ${C.wineDark} 55%, ${C.bg} 100%)`,
+        padding: "48px 24px 60px", textAlign: "center",
+      }}>
+        <div style={{
+          width: 72, height: 72, borderRadius: "50%",
+          background: "rgba(255,255,255,0.15)",
+          border: "3px solid rgba(255,255,255,0.4)",
+          margin: "0 auto 16px",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <PentagonLogo size={54} />
+        </div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 4 }}>Welcome Back</div>
+        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>Sign in to your account</div>
+      </div>
+
+      <div style={{
+        margin: "-24px 20px 0",
+        background: C.white, borderRadius: 16,
+        padding: "28px 20px",
+        boxShadow: "0 4px 24px rgba(0,0,0,0.10)",
+      }}>
+        {[
+          {
+            label: "Username / Phone", value: user, set: setUser,
+            placeholder: "Enter username or phone", icon: <User size={16} color={C.textLight} />, type: "text",
+          },
+          {
+            label: "Password", value: pwd, set: setPwd,
+            placeholder: "Enter password",
+            icon: <Lock size={16} color={C.textLight} />,
+            type: showPwd ? "text" : "password",
+            suffix: (
+              <button onClick={() => setShowPwd(v => !v)} style={{ border: "none", background: "none", cursor: "pointer" }}>
+                {showPwd ? <EyeOff size={16} color={C.textLight} /> : <Eye size={16} color={C.textLight} />}
+              </button>
+            ),
+          },
+        ].map((f, i) => (
+          <div key={f.label} style={{ marginBottom: i === 0 ? 14 : 22 }}>
+            <div style={{ fontSize: 12, color: C.textLight, marginBottom: 6 }}>{f.label}</div>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              border: `1.5px solid ${C.border}`, borderRadius: 10, padding: "11px 14px",
+            }}>
+              {f.icon}
+              <input
+                value={f.value}
+                onChange={e => f.set(e.target.value)}
+                placeholder={f.placeholder}
+                type={f.type}
+                style={{ flex: 1, border: "none", outline: "none", fontSize: 14, color: C.text, background: "transparent" }}
               />
-            )}
-            <Icon size={22} strokeWidth={active ? 2.5 : 1.8} color={active ? "#6d4c57" : "#9ca3af"} />
-            <span
-              className="text-[10px] font-semibold tracking-wide"
-              style={{ color: active ? "#6d4c57" : "#9ca3af" }}
-            >
-              {label}
+              {f.suffix}
+            </div>
+          </div>
+        ))}
+
+        <button onClick={onLogin} style={{
+          width: "100%",
+          background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
+          border: "none", borderRadius: 10, padding: "14px 0",
+          fontSize: 15, fontWeight: 700, color: "#fff", cursor: "pointer",
+          boxShadow: `0 4px 16px rgba(245,161,0,0.4)`, marginBottom: 16,
+        }}>Login</button>
+
+        <div style={{ textAlign: "center", fontSize: 13, color: C.textMid }}>
+          Don't have an account?{" "}
+          <span style={{ color: C.orange, fontWeight: 600, cursor: "pointer" }}>Register</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BOTTOM NAV
+// ═══════════════════════════════════════════════════════════════════════════════
+function BottomNav({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
+  const items: { key: Tab; label: string; icon: (active: boolean) => React.ReactNode }[] = [
+    { key: "home",    label: "Home",    icon: a => <Home        size={22} color={a ? C.orange : C.textLight} /> },
+    { key: "service", label: "Service", icon: a => <Headphones  size={22} color={a ? C.orange : C.textLight} /> },
+    { key: "menu",    label: "Menu",    icon: a => <ShoppingBag size={22} color={a ? C.orange : C.textLight} /> },
+    { key: "record",  label: "Record",  icon: a => <ClipboardList size={22} color={a ? C.orange : C.textLight} /> },
+    { key: "mine",    label: "Mine",    icon: a => <User        size={22} color={a ? C.orange : C.textLight} /> },
+  ];
+  return (
+    <div style={{
+      position: "absolute", bottom: 0, left: 0, right: 0,
+      height: 68, background: C.white,
+      borderTop: `1px solid ${C.border}`,
+      display: "flex", zIndex: 50,
+    }}>
+      {items.map(item => {
+        const active = tab === item.key;
+        return (
+          <button key={item.key} onClick={() => onTab(item.key)} style={{
+            flex: 1, border: "none", background: "none", cursor: "pointer",
+            display: "flex", flexDirection: "column", alignItems: "center",
+            justifyContent: "center", gap: 3,
+          }}>
+            {item.icon(active)}
+            <span style={{ fontSize: 11, fontWeight: active ? 600 : 400, color: active ? C.orange : C.textLight }}>
+              {item.label}
             </span>
           </button>
         );
@@ -165,1686 +1432,84 @@ function BottomNav({ currentPage, onNavigate }: { currentPage: Page; onNavigate:
   );
 }
 
-/* ─────────────────────────────── Login ─────────────────────────────── */
+// ═══════════════════════════════════════════════════════════════════════════════
+// ROOT APP
+// ═══════════════════════════════════════════════════════════════════════════════
+export default function App() {
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [tab, setTab] = useState<Tab>("home");
+  const [subPage, setSubPage] = useState<SubPage | null>(null);
+  const [taskPlatform, setTaskPlatform] = useState("amazon");
 
-function LoginScreen({ onLogin }: { onLogin: () => void }) {
-  const [showPassword, setShowPassword] = useState(false);
+  const goSub = (page: SubPage) => setSubPage(page);
+  const goBack = () => setSubPage(null);
 
-  return (
-    <div className="h-full overflow-y-auto px-6 pt-4 pb-10 flex flex-col" style={{ scrollbarWidth: "none" }}>
-      <div className="flex justify-end mb-8">
-        <button className="flex items-center gap-1.5 text-[13px] font-semibold text-gray-500 bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-full">
-          <Globe size={13} className="text-gray-400" />
-          EN
-          <ChevronDown size={12} className="text-gray-400" />
-        </button>
-      </div>
-
-      <div className="mb-10 text-center">
-        <div
-          className="w-[68px] h-[68px] mx-auto mb-5 rounded-[20px] flex items-center justify-center"
-          style={{
-            background: "linear-gradient(135deg, #6d4c57 0%, #8a6370 100%)",
-            boxShadow: "0 12px 32px rgba(109,76,87,0.30)",
-          }}
-        >
-          <Shield className="text-white" size={30} strokeWidth={1.5} />
-        </div>
-        <h1 className="text-[24px] font-bold text-gray-900 tracking-tight">Welcome Back</h1>
-        <p className="text-[13px] text-gray-400 mt-1.5">Sign in to your private portfolio</p>
-      </div>
-
-      <div className="space-y-4">
-        <FormField label="Username">
-          <input
-            type="text"
-            placeholder="Enter your username"
-            className="w-full bg-gray-50 border border-gray-100 px-4 py-3.5 rounded-[14px] text-[14px] text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#6d4c57] focus:bg-white transition-all"
-          />
-        </FormField>
-
-        <FormField label="Password">
-          <div className="relative">
-            <input
-              type={showPassword ? "text" : "password"}
-              placeholder="Enter your password"
-              className="w-full bg-gray-50 border border-gray-100 px-4 py-3.5 pr-12 rounded-[14px] text-[14px] text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#6d4c57] focus:bg-white transition-all"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
-            >
-              {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-            </button>
-          </div>
-        </FormField>
-
-        <FormField label="Verification Code">
-          <div className="flex gap-3">
-            <input
-              type="text"
-              placeholder="Enter code"
-              className="flex-1 bg-gray-50 border border-gray-100 px-4 py-3.5 rounded-[14px] text-[14px] text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#6d4c57] focus:bg-white transition-all"
-            />
-            <div
-              className="w-[88px] rounded-[14px] flex items-center justify-center font-mono text-[20px] font-bold tracking-[4px] select-none shrink-0"
-              style={{
-                background: "linear-gradient(135deg, #f5f0f2 0%, #ede5e8 100%)",
-                color: "#6d4c57",
-                border: "1px solid rgba(109,76,87,0.15)",
-              }}
-            >
-              8429
-            </div>
-          </div>
-        </FormField>
-      </div>
-
-      <div className="flex items-center mt-5">
-        <label className="flex items-center gap-2.5 cursor-pointer">
-          <div
-            className="w-[18px] h-[18px] rounded-[5px] flex items-center justify-center shrink-0"
-            style={{ background: "#6d4c57" }}
-          >
-            <CheckCircle2 size={12} className="text-white" />
-          </div>
-          <span className="text-[13px] text-gray-600 font-medium">Remember password</span>
-        </label>
-      </div>
-
-      <button
-        onClick={onLogin}
-        className="w-full text-white font-semibold py-4 rounded-[14px] mt-8 text-[15px] tracking-wide transition-all active:scale-[0.98]"
-        style={{
-          background: "linear-gradient(135deg, #6d4c57 0%, #7e5865 100%)",
-          boxShadow: "0 8px 24px rgba(109,76,87,0.32)",
-        }}
-      >
-        Sign In
-      </button>
-
-      <div className="mt-7 text-center">
-        <span className="text-[13px] text-gray-400">Don't have an account? </span>
-        <button className="text-[13px] font-bold" style={{ color: "#6d4c57" }}>Register</button>
-      </div>
-    </div>
-  );
-}
-
-function FormField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">
-        {label}
-      </label>
-      {children}
-    </div>
-  );
-}
-
-/* ─────────────────────────────── Home ─────────────────────────────── */
-
-function HomeScreen({ onNavigate }: { onNavigate: (p: Page) => void }) {
-  return (
-    <div className="h-full overflow-y-auto flex flex-col" style={{ scrollbarWidth: "none", paddingBottom: "96px" }}>
-      {/* Header */}
-      <div className="px-6 pt-2 pb-4 flex justify-between items-center shrink-0">
-        <div>
-          <p className="text-[12px] text-gray-400 font-medium mb-0.5">Good morning,</p>
-          <h2 className="text-[20px] font-bold text-gray-900 leading-tight">John Wealth</h2>
-        </div>
-        <button className="w-10 h-10 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center relative">
-          <Bell size={18} className="text-gray-600" />
-          <div className="absolute top-2 right-2 w-2 h-2 rounded-full" style={{ background: "#6d4c57" }} />
-        </button>
-      </div>
-
-      {/* Balance Hero Card */}
-      <div className="px-5 mb-5 shrink-0">
-        <div
-          className="w-full rounded-[20px] p-5 relative overflow-hidden"
-          style={{
-            background: "linear-gradient(135deg, #6d4c57 0%, #7e5865 60%, #5a3e48 100%)",
-            boxShadow: "0 12px 40px rgba(109,76,87,0.30)",
-          }}
-        >
-          <div className="absolute top-0 right-0 w-52 h-52 bg-white/5 rounded-full -mr-20 -mt-20" />
-          <div className="absolute bottom-0 left-0 w-36 h-36 bg-black/10 rounded-full -ml-10 -mb-14" />
-          <div className="relative z-10">
-            <p className="text-white/70 text-[11px] font-semibold uppercase tracking-widest mb-3">
-              Total Portfolio Value
-            </p>
-            <div className="flex items-baseline gap-1 mb-1">
-              <span className="text-white/70 text-[16px] font-medium">$</span>
-              <span className="text-[32px] font-bold text-white tracking-tight leading-none">124,592</span>
-              <span className="text-white/70 text-[16px] font-medium">.50</span>
-            </div>
-            <div className="flex items-center gap-1.5 mt-2">
-              <TrendingUp size={13} className="text-emerald-300" />
-              <span className="text-emerald-300 text-[12px] font-semibold">+2.4% today</span>
-            </div>
-          </div>
-          <div className="relative z-10 flex gap-3 mt-5">
-            <button
-              onClick={() => onNavigate("service")}
-              className="flex-1 border border-white/20 text-white text-[13px] font-semibold py-2.5 rounded-[10px] transition-all"
-              style={{ background: "rgba(255,255,255,0.15)" }}
-            >
-              Deposit
-            </button>
-            <button
-              onClick={() => onNavigate("service")}
-              className="flex-1 border border-white/15 text-white/80 text-[13px] font-semibold py-2.5 rounded-[10px] transition-all"
-              style={{ background: "rgba(255,255,255,0.08)" }}
-            >
-              Withdraw
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="px-6 mb-5 shrink-0">
-        <div className="grid grid-cols-4 gap-3">
-          {[
-            { icon: ArrowDownLeft, label: "Deposit",  page: "service" as Page },
-            { icon: ArrowUpRight,  label: "Withdraw", page: "service" as Page },
-            { icon: Users,         label: "Team",     page: "menu"    as Page },
-            { icon: UserPlus,      label: "Invite",   page: "menu"    as Page },
-          ].map((action, i) => (
-            <button
-              key={i}
-              onClick={() => onNavigate(action.page)}
-              className="flex flex-col items-center gap-2"
-            >
-              <div
-                className="w-12 h-12 rounded-[14px] flex items-center justify-center"
-                style={{ background: "rgba(109,76,87,0.09)", border: "1px solid rgba(109,76,87,0.12)" }}
-              >
-                <action.icon size={20} color="#6d4c57" strokeWidth={2} />
-              </div>
-              <span className="text-[11px] font-semibold text-gray-600">{action.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Announcement Section — burgundy-tinted, matches design system */}
-      <div className="px-5 mb-5 shrink-0">
-        <SectionHeader title="Announcements" />
-        <div className="space-y-2">
-          {[
-            { tag: "Notice", text: "System upgrade scheduled for 02:00 AM UTC tonight.", dot: true },
-            { tag: "Update", text: "New withdrawal limits take effect Nov 1, 2024.", dot: false },
-          ].map((item, i) => (
-            <div
-              key={i}
-              className="flex items-start gap-3 rounded-[12px] px-3 py-2.5"
-              style={{ background: "rgba(109,76,87,0.05)", border: "1px solid rgba(109,76,87,0.10)" }}
-            >
-              <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
-                {item.dot && (
-                  <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "#6d4c57" }} />
-                )}
-                <div
-                  className="rounded-[5px] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide"
-                  style={{ background: "rgba(109,76,87,0.12)", color: "#6d4c57" }}
-                >
-                  {item.tag}
-                </div>
-              </div>
-              <p className="text-[12px] text-gray-600 leading-snug flex-1">{item.text}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Platform Info Cards */}
-      <div className="px-5 mb-5 shrink-0">
-        <SectionHeader title="Platform Info" />
-        <div className="grid grid-cols-2 gap-2.5">
-          {[
-            { icon: Info,       label: "Platform Profile",  desc: "About us"      },
-            { icon: FileBadge2, label: "Platform Rules",    desc: "Terms of use"  },
-            { icon: BookOpen,   label: "Cooperation",       desc: "Partnerships"  },
-            { icon: HelpCircle, label: "User Guide",        desc: "How to start"  },
-          ].map((item, i) => (
-            <div
-              key={i}
-              className="p-3.5 rounded-[16px] flex items-center gap-3 cursor-pointer active:opacity-70"
-              style={{ background: "#fafafa", border: "1px solid rgba(0,0,0,0.05)" }}
-            >
-              <div
-                className="w-9 h-9 rounded-[10px] shrink-0 flex items-center justify-center"
-                style={{ background: "rgba(109,76,87,0.08)" }}
-              >
-                <item.icon size={16} color="#6d4c57" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-[12px] font-bold text-gray-800 leading-tight truncate">{item.label}</div>
-                <div className="text-[11px] text-gray-400 mt-0.5">{item.desc}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Recent Activity — varied statuses */}
-      <div className="px-5 shrink-0">
-        <SectionHeader title="Recent Activity" actionLabel="View All" />
-        <div className="space-y-2.5">
-          {[
-            { title: "Deposit BTC",       date: "Today · 14:20",      amount: "+0.0450 BTC",  type: "in",  status: "completed"  },
-            { title: "Withdraw USDT",     date: "Yesterday · 09:12",  amount: "-1,200 USDT",  type: "out", status: "processing" },
-            { title: "Commission Earned", date: "Oct 12 · 18:40",     amount: "+45.50 USDT",  type: "in",  status: "completed"  },
-            { title: "Deposit ETH",       date: "Oct 10 · 11:05",     amount: "+0.5000 ETH",  type: "in",  status: "pending"    },
-          ].map((item, i) => {
-            const statusMap: Record<string, { label: string; color: string; bg: string }> = {
-              completed:  { label: "Done",       color: "#059669", bg: "rgba(5,150,105,0.09)"   },
-              processing: { label: "Processing", color: "#3b82f6", bg: "rgba(59,130,246,0.09)"  },
-              pending:    { label: "Pending",    color: "#d97706", bg: "rgba(217,119,6,0.09)"   },
-            };
-            const s = statusMap[item.status];
-            return (
-              <div
-                key={i}
-                className="flex items-center justify-between px-3.5 py-3 rounded-[14px] bg-white"
-                style={{ border: "1px solid rgba(0,0,0,0.05)", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
-                    style={{ background: item.type === "in" ? "rgba(16,185,129,0.1)" : "rgba(244,63,94,0.08)" }}
-                  >
-                    {item.type === "in"
-                      ? <ArrowDownLeft size={16} color="#10b981" />
-                      : <ArrowUpRight  size={16} color="#f43f5e" />}
-                  </div>
-                  <div>
-                    <p className="text-[13px] font-semibold text-gray-900 leading-tight">{item.title}</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">{item.date}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-[13px] font-bold" style={{ color: item.type === "in" ? "#10b981" : "#374151" }}>
-                    {item.amount}
-                  </p>
-                  <span
-                    className="text-[10px] font-semibold px-1.5 py-0.5 rounded-[4px] mt-0.5 inline-block"
-                    style={{ background: s.bg, color: s.color }}
-                  >
-                    {s.label}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Promotional Banners */}
-      <div className="px-5 mt-5 shrink-0 space-y-3">
-        <div
-          className="w-full h-[80px] rounded-[16px] flex items-center px-5 overflow-hidden relative"
-          style={{ background: "linear-gradient(120deg, #f9f0f3 0%, #ede0e5 100%)", border: "1px solid rgba(109,76,87,0.1)" }}
-        >
-          <div className="absolute right-0 top-0 h-full w-32" style={{ background: "radial-gradient(circle, rgba(109,76,87,0.15) 0%, transparent 70%)" }} />
-          <div className="relative z-10">
-            <p className="text-[12px] font-bold text-[#6d4c57] mb-0.5">Premium Tier Active</p>
-            <p className="text-[11px] text-gray-500">Zero fees on withdrawals · 28 days left</p>
-          </div>
-          <button
-            className="ml-auto shrink-0 text-[11px] font-bold text-white px-3 py-1.5 rounded-[8px] relative z-10"
-            style={{ background: "#6d4c57" }}
-          >
-            Details
-          </button>
-        </div>
-        <div
-          className="w-full h-[72px] rounded-[16px] flex items-center px-5 overflow-hidden relative"
-          style={{ background: "linear-gradient(120deg, #f0f4ff 0%, #e5eaff 100%)", border: "1px solid rgba(99,102,241,0.12)" }}
-        >
-          <Gift size={20} className="text-indigo-400 mr-3 shrink-0" />
-          <div>
-            <p className="text-[12px] font-bold text-indigo-700">Refer a Friend</p>
-            <p className="text-[11px] text-indigo-400">Earn 10 USDT per successful referral</p>
-          </div>
-          <ChevronRight size={16} className="ml-auto text-indigo-300 shrink-0" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────── Wallet (Service) ─────────────────────────────── */
-
-const DEMO_TRC20_ADDRESS = "TDqfQ6tLFGGArRERHvvR3z3JF5QKekUvM1";
-
-function WalletScreen() {
-  const [showDeposit,  setShowDeposit]  = useState(false);
-  const [showWithdraw, setShowWithdraw] = useState(false);
-
-  return (
-    <div className="h-full relative bg-[#f8f8f8]">
-      {/* Scrollable content */}
-      <div className="h-full overflow-y-auto" style={{ scrollbarWidth: "none", paddingBottom: "96px" }}>
-        {/* Header panel */}
-        <div
-          className="bg-white px-6 pt-3 pb-6"
-          style={{ borderRadius: "0 0 24px 24px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}
-        >
-          <div className="flex justify-between items-center mb-5">
-            <h2 className="text-[18px] font-bold text-gray-900">My Wallet</h2>
-            <div
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold text-gray-500"
-              style={{ background: "#f5f5f5", border: "1px solid rgba(0,0,0,0.07)" }}
-            >
-              USD <ChevronDown size={13} />
-            </div>
-          </div>
-
-          <div className="text-center mb-6">
-            <p className="text-[11px] text-gray-400 uppercase tracking-widest font-semibold mb-2">
-              Available Balance
-            </p>
-            <div className="flex items-baseline justify-center gap-1">
-              <span className="text-[17px] font-semibold text-gray-400">$</span>
-              <span className="text-[38px] font-bold text-gray-900 tracking-tight leading-none">124,592</span>
-              <span className="text-[17px] font-semibold text-gray-400">.50</span>
-            </div>
-            <div className="flex items-center justify-center gap-1.5 mt-2">
-              <TrendingUp size={13} className="text-emerald-500" />
-              <span className="text-[12px] text-emerald-600 font-semibold">+$2,840 this month</span>
-            </div>
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              onClick={() => setShowDeposit(true)}
-              className="flex-1 text-white font-semibold text-[14px] py-3 rounded-[13px] transition-all active:scale-[0.98]"
-              style={{
-                background: "linear-gradient(135deg, #6d4c57 0%, #7e5865 100%)",
-                boxShadow: "0 6px 20px rgba(109,76,87,0.28)",
-              }}
-            >
-              Deposit
-            </button>
-            <button
-              onClick={() => setShowWithdraw(true)}
-              className="flex-1 font-semibold text-[14px] py-3 rounded-[13px] transition-all active:scale-[0.98]"
-              style={{ background: "#f5f5f5", color: "#374151", border: "1px solid rgba(0,0,0,0.07)" }}
-            >
-              Withdraw
-            </button>
-          </div>
-        </div>
-
-        {/* Stats Row */}
-        <div className="px-5 mt-4 mb-4">
-          <div className="grid grid-cols-3 gap-2.5">
-            {[
-              { label: "Total Income",    value: "+$8,450",  color: "#10b981", bg: "rgba(16,185,129,0.07)",  border: "rgba(16,185,129,0.15)"  },
-              { label: "Total Deposits",  value: "$20,650",  color: "#6d4c57", bg: "rgba(109,76,87,0.07)",   border: "rgba(109,76,87,0.15)"   },
-              { label: "Total Withdrawn", value: "$12,200",  color: "#f43f5e", bg: "rgba(244,63,94,0.07)",   border: "rgba(244,63,94,0.15)"   },
-            ].map((s, i) => (
-              <div
-                key={i}
-                className="rounded-[14px] p-3 text-center"
-                style={{ background: s.bg, border: `1px solid ${s.border}` }}
-              >
-                <p className="text-[11px] text-gray-500 font-medium leading-tight mb-1">{s.label}</p>
-                <p className="text-[14px] font-bold leading-tight" style={{ color: s.color }}>{s.value}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Asset List */}
-        <div className="px-5">
-          <SectionHeader title="My Assets" />
-          <div className="space-y-2.5">
-            {[
-              { symbol: "BTC",  name: "Bitcoin",  amount: "1.4500",   val: "$84,245.00", change: "+3.2%", up: true,  color: "#F7931A", bg: "rgba(247,147,26,0.10)"  },
-              { symbol: "ETH",  name: "Ethereum", amount: "12.8000",  val: "$32,150.00", change: "+1.8%", up: true,  color: "#627EEA", bg: "rgba(98,126,234,0.10)"  },
-              { symbol: "USDT", name: "Tether",   amount: "8,197.50", val: "$8,197.50",  change: "0.00%", up: true,  color: "#26A17B", bg: "rgba(38,161,123,0.10)"  },
-            ].map((asset, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between p-4 rounded-[16px] bg-white"
-                style={{ border: "1px solid rgba(0,0,0,0.05)", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-[11px] shrink-0"
-                    style={{ background: asset.bg, color: asset.color }}
-                  >
-                    {asset.symbol}
-                  </div>
-                  <div>
-                    <p className="text-[14px] font-bold text-gray-900 leading-tight">{asset.symbol}</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">{asset.name}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-[14px] font-bold text-gray-900">{asset.amount}</p>
-                  <p className="text-[11px] text-gray-400 mt-0.5">≈ {asset.val}</p>
-                  <div
-                    className="text-[10px] font-bold mt-1 inline-block px-1.5 py-0.5 rounded-[4px]"
-                    style={{
-                      color:      asset.up ? "#10b981" : "#f43f5e",
-                      background: asset.up ? "rgba(16,185,129,0.1)" : "rgba(244,63,94,0.1)",
-                    }}
-                  >
-                    {asset.change}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Deposit modal overlay */}
-      {showDeposit  && <DepositModal  onClose={() => setShowDeposit(false)}  />}
-      {/* Withdraw modal overlay */}
-      {showWithdraw && <WithdrawModal onClose={() => setShowWithdraw(false)} />}
-    </div>
-  );
-}
-
-/* ─────────────────────────────── QR Code ─────────────────────────────── */
-
-function QRCode({ size = 148 }: { size?: number }) {
-  const N = 21;
-  const cell = (size - 12) / N; // 6px padding each side
-
-  // Finder pattern: returns true=black, false=white, null=not finder
-  const finder = (r: number, c: number, dr: number, dc: number): boolean => {
-    const lr = r - dr, lc = c - dc;
-    if (lr === 0 || lr === 6 || lc === 0 || lc === 6) return true;
-    if (lr >= 2 && lr <= 4 && lc >= 2 && lc <= 4) return true;
-    return false;
+  const handleTab = (t: Tab) => {
+    setTab(t);
+    setSubPage(null);
   };
 
-  const cellValue = (r: number, c: number): boolean => {
-    // Separator quiet zone (1px white border around each finder)
-    const inSep =
-      (r <= 7 && c === 7) || (r === 7 && c <= 7) ||
-      (r <= 7 && c === N - 8) || (r === 7 && c >= N - 8) ||
-      (r >= N - 8 && c === 7) || (r === N - 7 && c <= 7);
-    if (inSep) return false;
+  const renderContent = () => {
+    if (subPage === "deposit")          return <DepositScreen   onBack={goBack} onQR={() => setSubPage("deposit-qr")} />;
+    if (subPage === "deposit-qr")       return <DepositQRScreen  onBack={() => setSubPage("deposit")} />;
+    if (subPage === "withdraw")         return <WithdrawScreen   onBack={goBack} onAddWallet={() => setSubPage("add-wallet")} />;
+    if (subPage === "add-wallet")       return <AddWalletScreen  onBack={() => setSubPage("withdraw")} />;
+    if (subPage === "teams")            return <TeamsScreen      onBack={goBack} />;
+    if (subPage === "invite")           return <InviteScreen     onBack={goBack} />;
+    if (subPage === "wallet-mgmt")      return <WalletMgmtScreen onBack={goBack} onAdd={() => setSubPage("add-wallet")} />;
+    if (subPage === "profile")          return <ProfileScreen    onBack={goBack} />;
+    if (subPage === "deposit-records")  return <SimpleRecordsScreen title="Deposit Records"    onBack={goBack} />;
+    if (subPage === "withdraw-records") return <SimpleRecordsScreen title="Withdrawal Records" onBack={goBack} />;
+    if (subPage === "setting")          return <SettingScreen    onBack={goBack} onLogout={() => setLoggedIn(false)} />;
+    if (subPage === "task")             return <TaskDetailScreen platform={taskPlatform} onBack={goBack} />;
 
-    // Top-left finder
-    if (r < 7 && c < 7) return finder(r, c, 0, 0);
-    // Top-right finder
-    if (r < 7 && c >= N - 7) return finder(r, c, 0, N - 7);
-    // Bottom-left finder
-    if (r >= N - 7 && c < 7) return finder(r, c, N - 7, 0);
-
-    // Timing strips
-    if (r === 6 && c >= 8 && c <= N - 9) return c % 2 === 0;
-    if (c === 6 && r >= 8 && r <= N - 9) return r % 2 === 0;
-
-    // Alignment pattern (centre at r=16,c=16 for version 1 extended)
-    if (r >= 14 && r <= 18 && c >= 14 && c <= 18) {
-      if (r === 14 || r === 18 || c === 14 || c === 18) return true;
-      if (r === 16 && c === 16) return true;
-      return false;
-    }
-
-    // Data modules — deterministic pseudo-random
-    const h = ((r * 1103515245 + c * 1664525 + 1013904223) >>> 0) % 1000;
-    return h < 470;
-  };
-
-  const rows: React.ReactNode[] = [];
-  for (let r = 0; r < N; r++) {
-    const cells: React.ReactNode[] = [];
-    for (let c = 0; c < N; c++) {
-      cells.push(
-        <div
-          key={c}
-          style={{
-            width: cell,
-            height: cell,
-            background: cellValue(r, c) ? "#1a1a1a" : "transparent",
-            borderRadius: cellValue(r, c) ? 1 : 0,
-          }}
-        />
-      );
-    }
-    rows.push(
-      <div key={r} style={{ display: "flex" }}>{cells}</div>
-    );
-  }
-
-  return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        background: "white",
-        padding: 6,
-        borderRadius: 12,
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        boxShadow: "0 2px 12px rgba(0,0,0,0.10)",
-      }}
-    >
-      {rows}
-    </div>
-  );
-}
-
-/* ─────────────────────────────── Deposit Modal ─────────────────────────────── */
-
-function DepositModal({ onClose }: { onClose: () => void }) {
-  const [network,  setNetwork]  = useState<"TRC20" | "ERC20" | "BEP20">("TRC20");
-  const [copied,   setCopied]   = useState(false);
-
-  const addresses: Record<string, string> = {
-    TRC20: DEMO_TRC20_ADDRESS,
-    ERC20: "0x4A3b8C9D1e2F5a6B7c8D9E0f1A2b3C4d5E6f7A8b",
-    BEP20: "bnb1qp6f4qzge8p2j0l9mvqk4v2t5n8xr3hyd4qwu",
-  };
-
-  const address = addresses[network];
-
-  const handleCopy = () => {
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const networkColors: Record<string, { bg: string; color: string; border: string }> = {
-    TRC20: { bg: "rgba(239,68,68,0.08)",  color: "#dc2626", border: "rgba(239,68,68,0.20)"  },
-    ERC20: { bg: "rgba(98,126,234,0.08)", color: "#627EEA", border: "rgba(98,126,234,0.20)" },
-    BEP20: { bg: "rgba(245,158,11,0.08)", color: "#d97706", border: "rgba(245,158,11,0.20)" },
+    if (tab === "home")    return <HomeScreen    onNavigate={goSub} />;
+    if (tab === "service") return <ServiceScreen />;
+    if (tab === "menu")    return <MenuScreen    onTask={p => { setTaskPlatform(p); setSubPage("task"); }} />;
+    if (tab === "record")  return <RecordScreen />;
+    if (tab === "mine")    return <MineScreen    onNavigate={goSub} />;
+    return null;
   };
 
   return (
-    /* Backdrop */
-    <div
-      className="absolute inset-0 z-50 flex flex-col justify-end"
-      style={{ background: "rgba(0,0,0,0.50)" }}
-      onClick={onClose}
-    >
-      {/* Sheet */}
-      <div
-        className="bg-white w-full flex flex-col"
-        style={{ borderRadius: "24px 24px 0 0", maxHeight: "88%" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Handle bar */}
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full bg-gray-200" />
-        </div>
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3">
-          <div>
-            <h3 className="text-[17px] font-bold text-gray-900">Deposit USDT</h3>
-            <p className="text-[12px] text-gray-400 mt-0.5">Send only USDT to this address</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
-          >
-            <X size={16} className="text-gray-500" />
-          </button>
-        </div>
-
-        <div className="overflow-y-auto px-5 pb-8" style={{ scrollbarWidth: "none" }}>
-          {/* Network selector */}
-          <div className="mb-5">
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">
-              Select Network
-            </p>
-            <div className="flex gap-2">
-              {(["TRC20", "ERC20", "BEP20"] as const).map((n) => {
-                const active = network === n;
-                const nc = networkColors[n];
-                return (
-                  <button
-                    key={n}
-                    onClick={() => setNetwork(n)}
-                    className="flex-1 py-2.5 rounded-[12px] text-[13px] font-bold transition-all"
-                    style={{
-                      background: active ? nc.bg : "#f5f5f5",
-                      color:      active ? nc.color : "#9ca3af",
-                      border:     active ? `1px solid ${nc.border}` : "1px solid transparent",
-                    }}
-                  >
-                    {n}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* QR code */}
-          <div className="flex justify-center mb-5">
-            <div className="flex flex-col items-center gap-3">
-              <div
-                className="p-3 rounded-[18px]"
-                style={{ background: "#fafafa", border: "1px solid rgba(0,0,0,0.07)" }}
-              >
-                <QRCode size={148} />
-              </div>
-              <div
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold"
-                style={{ background: networkColors[network].bg, color: networkColors[network].color }}
-              >
-                <div className="w-1.5 h-1.5 rounded-full" style={{ background: networkColors[network].color }} />
-                {network} Network
-              </div>
-            </div>
-          </div>
-
-          {/* Address */}
-          <div className="mb-4">
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">
-              Wallet Address
-            </p>
-            <div
-              className="flex items-center gap-3 p-3.5 rounded-[14px]"
-              style={{ background: "#f8f8f8", border: "1px solid rgba(0,0,0,0.07)" }}
-            >
-              <p
-                className="flex-1 text-[12px] font-mono text-gray-700 break-all leading-relaxed"
-              >
-                {address}
-              </p>
-              <button
-                onClick={handleCopy}
-                className="shrink-0 w-9 h-9 rounded-[10px] flex items-center justify-center transition-all"
-                style={{
-                  background: copied ? "rgba(16,185,129,0.10)" : "rgba(109,76,87,0.08)",
-                  border:     copied ? "1px solid rgba(16,185,129,0.20)" : "1px solid rgba(109,76,87,0.12)",
-                }}
-              >
-                {copied
-                  ? <CheckCheck size={15} color="#10b981" />
-                  : <Copy size={15} color="#6d4c57" />}
-              </button>
-            </div>
-            {copied && (
-              <p className="text-[11px] text-emerald-600 font-semibold mt-1.5 text-center">
-                Address copied to clipboard
-              </p>
-            )}
-          </div>
-
-          {/* Important notices */}
-          <div
-            className="rounded-[14px] p-4 space-y-2.5"
-            style={{ background: "rgba(109,76,87,0.04)", border: "1px solid rgba(109,76,87,0.10)" }}
-          >
-            <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: "#6d4c57" }}>
-              Important
-            </p>
-            {[
-              `Only send USDT via the ${network} network to this address.`,
-              "Minimum deposit: 10 USDT · Confirmations required: 20",
-              "Sending any other asset will result in permanent loss.",
-            ].map((note, i) => (
-              <div key={i} className="flex items-start gap-2">
-                <AlertCircle size={13} className="shrink-0 mt-0.5" style={{ color: "#6d4c57" }} />
-                <p className="text-[12px] text-gray-600 leading-snug">{note}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────── Withdraw Modal ─────────────────────────────── */
-
-const WITHDRAWAL_FEE_RATE = 0.15;
-
-function WithdrawModal({ onClose }: { onClose: () => void }) {
-  const [address,  setAddress]  = useState("");
-  const [amount,   setAmount]   = useState("");
-  const [network,  setNetwork]  = useState<"TRC20" | "ERC20" | "BEP20">("TRC20");
-  const [fundPwd,  setFundPwd]  = useState("");
-  const [showPwd,  setShowPwd]  = useState(false);
-  const [submitted,setSubmitted]= useState(false);
-
-  const availableBalance = 8197.50;
-  const numAmount   = parseFloat(amount) || 0;
-  const fee         = numAmount * WITHDRAWAL_FEE_RATE;
-  const youReceive  = numAmount - fee;
-  const isValid     = numAmount >= 10 && numAmount <= availableBalance && address.length >= 20 && fundPwd.length >= 4;
-
-  const networkColors: Record<string, { bg: string; color: string; border: string }> = {
-    TRC20: { bg: "rgba(239,68,68,0.08)",  color: "#dc2626", border: "rgba(239,68,68,0.20)"  },
-    ERC20: { bg: "rgba(98,126,234,0.08)", color: "#627EEA", border: "rgba(98,126,234,0.20)" },
-    BEP20: { bg: "rgba(245,158,11,0.08)", color: "#d97706", border: "rgba(245,158,11,0.20)" },
-  };
-
-  const handleSetMax = () => setAmount(availableBalance.toFixed(2));
-
-  if (submitted) {
-    return (
-      <div
-        className="absolute inset-0 z-50 flex flex-col justify-end"
-        style={{ background: "rgba(0,0,0,0.50)" }}
-        onClick={onClose}
-      >
-        <div
-          className="bg-white w-full flex flex-col items-center px-6 py-10"
-          style={{ borderRadius: "24px 24px 0 0" }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div
-            className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-            style={{ background: "rgba(16,185,129,0.10)" }}
-          >
-            <CheckCheck size={30} color="#10b981" />
-          </div>
-          <h3 className="text-[17px] font-bold text-gray-900 mb-1">Request Submitted</h3>
-          <p className="text-[13px] text-gray-400 text-center mb-1">Your withdrawal is under review.</p>
-          <p className="text-[13px] text-gray-400 text-center mb-6">
-            Expected arrival: <span className="font-semibold text-gray-700">1–3 business days</span>
-          </p>
-          <div
-            className="w-full rounded-[14px] p-4 mb-6 space-y-2"
-            style={{ background: "#f8f8f8", border: "1px solid rgba(0,0,0,0.06)" }}
-          >
-            <div className="flex justify-between text-[13px]">
-              <span className="text-gray-400">Amount sent</span>
-              <span className="font-bold text-gray-900">{numAmount.toFixed(2)} USDT</span>
-            </div>
-            <div className="flex justify-between text-[13px]">
-              <span className="text-gray-400">Fee (15%)</span>
-              <span className="font-bold text-rose-500">-{fee.toFixed(2)} USDT</span>
-            </div>
-            <div
-              className="flex justify-between text-[13px] pt-2"
-              style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}
-            >
-              <span className="text-gray-400">You receive</span>
-              <span className="font-bold" style={{ color: "#6d4c57" }}>{youReceive.toFixed(2)} USDT</span>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-full py-4 text-white font-bold text-[15px] rounded-[14px]"
-            style={{
-              background: "linear-gradient(135deg, #6d4c57 0%, #7e5865 100%)",
-              boxShadow: "0 6px 20px rgba(109,76,87,0.28)",
-            }}
-          >
-            Done
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className="absolute inset-0 z-50 flex flex-col justify-end"
-      style={{ background: "rgba(0,0,0,0.50)" }}
-      onClick={onClose}
-    >
-      <div
-        className="bg-white w-full flex flex-col"
-        style={{ borderRadius: "24px 24px 0 0", maxHeight: "92%" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Handle */}
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full bg-gray-200" />
-        </div>
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3">
-          <div>
-            <h3 className="text-[17px] font-bold text-gray-900">Withdraw USDT</h3>
-            <p className="text-[12px] text-gray-400 mt-0.5">Available: {availableBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })} USDT</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
-          >
-            <X size={16} className="text-gray-500" />
-          </button>
-        </div>
-
-        <div className="overflow-y-auto px-5 pb-8" style={{ scrollbarWidth: "none" }}>
-          {/* Network selector */}
-          <div className="mb-4">
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">
-              Network
-            </p>
-            <div className="flex gap-2">
-              {(["TRC20", "ERC20", "BEP20"] as const).map((n) => {
-                const active = network === n;
-                const nc = networkColors[n];
-                return (
-                  <button
-                    key={n}
-                    onClick={() => setNetwork(n)}
-                    className="flex-1 py-2 rounded-[11px] text-[13px] font-bold transition-all"
-                    style={{
-                      background: active ? nc.bg : "#f5f5f5",
-                      color:      active ? nc.color : "#9ca3af",
-                      border:     active ? `1px solid ${nc.border}` : "1px solid transparent",
-                    }}
-                  >
-                    {n}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Recipient address */}
-          <div className="mb-4">
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">
-              Recipient Address
-            </p>
-            <input
-              type="text"
-              placeholder={`Enter ${network} wallet address`}
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="w-full bg-gray-50 px-4 py-3.5 rounded-[13px] text-[13px] text-gray-800 placeholder-gray-400 font-mono focus:outline-none transition-all"
-              style={{
-                border: address.length > 0 && address.length < 20
-                  ? "1px solid rgba(239,68,68,0.4)"
-                  : address.length >= 20
-                  ? "1px solid rgba(16,185,129,0.35)"
-                  : "1px solid rgba(0,0,0,0.08)",
-              }}
-            />
-            {address.length > 0 && address.length < 20 && (
-              <p className="text-[11px] text-rose-500 mt-1 font-medium">Address appears too short</p>
-            )}
-          </div>
-
-          {/* Amount input */}
-          <div className="mb-4">
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">
-              Amount (USDT)
-            </p>
-            <div className="relative">
-              <input
-                type="number"
-                placeholder="0.00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="w-full bg-gray-50 px-4 py-3.5 pr-16 rounded-[13px] text-[15px] font-bold text-gray-800 placeholder-gray-300 focus:outline-none transition-all"
-                style={{
-                  border: numAmount > availableBalance
-                    ? "1px solid rgba(239,68,68,0.4)"
-                    : numAmount > 0
-                    ? "1px solid rgba(109,76,87,0.25)"
-                    : "1px solid rgba(0,0,0,0.08)",
-                }}
-              />
-              <button
-                onClick={handleSetMax}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-bold px-2 py-1 rounded-[7px]"
-                style={{ background: "rgba(109,76,87,0.09)", color: "#6d4c57" }}
-              >
-                MAX
-              </button>
-            </div>
-            {numAmount > 0 && numAmount < 10 && (
-              <p className="text-[11px] text-rose-500 mt-1 font-medium">Minimum withdrawal is 10 USDT</p>
-            )}
-            {numAmount > availableBalance && (
-              <p className="text-[11px] text-rose-500 mt-1 font-medium">Exceeds available balance</p>
-            )}
-          </div>
-
-          {/* Fee breakdown — always visible when amount > 0 */}
-          {numAmount > 0 && (
-            <div
-              className="rounded-[14px] p-4 mb-4"
-              style={{ background: "#f8f9fa", border: "1px solid rgba(0,0,0,0.07)" }}
-            >
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[13px] text-gray-500">Withdrawal amount</span>
-                  <span className="text-[13px] font-semibold text-gray-900">{numAmount.toFixed(2)} USDT</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[13px] text-gray-500">Service fee</span>
-                    <span
-                      className="text-[10px] font-bold px-1.5 py-0.5 rounded-[5px]"
-                      style={{ background: "rgba(239,68,68,0.09)", color: "#dc2626" }}
-                    >
-                      15%
-                    </span>
-                  </div>
-                  <span className="text-[13px] font-semibold text-rose-500">−{fee.toFixed(2)} USDT</span>
-                </div>
-                <div
-                  className="flex items-center justify-between pt-2.5"
-                  style={{ borderTop: "1px dashed rgba(0,0,0,0.08)" }}
-                >
-                  <span className="text-[13px] font-bold text-gray-700">You receive</span>
-                  <span className="text-[15px] font-bold" style={{ color: youReceive > 0 ? "#6d4c57" : "#dc2626" }}>
-                    {youReceive > 0 ? youReceive.toFixed(2) : "0.00"} USDT
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Fund password */}
-          <div className="mb-5">
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">
-              Fund Password
-            </p>
-            <div className="relative">
-              <input
-                type={showPwd ? "text" : "password"}
-                placeholder="Enter your fund password"
-                value={fundPwd}
-                onChange={(e) => setFundPwd(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-100 px-4 py-3.5 pr-12 rounded-[13px] text-[14px] text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#6d4c57] focus:bg-white transition-all"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPwd(!showPwd)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
-              >
-                {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-          </div>
-
-          {/* Notice */}
-          <div
-            className="rounded-[12px] p-3.5 mb-5 flex items-start gap-2.5"
-            style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.12)" }}
-          >
-            <AlertCircle size={14} className="shrink-0 mt-0.5 text-rose-400" />
-            <p className="text-[12px] text-gray-600 leading-snug">
-              A <span className="font-bold text-rose-500">15% service fee</span> is deducted from every withdrawal. Minimum withdrawal is 10 USDT. Processing time is 1–3 business days.
-            </p>
-          </div>
-
-          {/* Submit */}
-          <button
-            onClick={() => isValid && setSubmitted(true)}
-            className="w-full py-4 font-bold text-[15px] rounded-[14px] transition-all"
-            style={{
-              background: isValid
-                ? "linear-gradient(135deg, #6d4c57 0%, #7e5865 100%)"
-                : "#e5e7eb",
-              color:      isValid ? "white" : "#9ca3af",
-              boxShadow:  isValid ? "0 6px 20px rgba(109,76,87,0.28)" : "none",
-              cursor:     isValid ? "pointer" : "not-allowed",
-            }}
-          >
-            Confirm Withdrawal
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────── Team (Menu) ─────────────────────────────── */
-
-// Consistent avatar colors drawn from the burgundy / warm palette
-const AVATAR_PALETTE = ["#6d4c57", "#8a6370", "#7e5865", "#9a7585", "#5a3e48"];
-
-function TeamScreen() {
-  return (
-    <div className="h-full overflow-y-auto bg-[#f8f8f8]" style={{ scrollbarWidth: "none", paddingBottom: "96px" }}>
-      <div className="px-5 pt-3">
-        <div className="flex justify-between items-center mb-5">
-          <h2 className="text-[18px] font-bold text-gray-900">My Team</h2>
-          <div
-            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold"
-            style={{ background: "rgba(109,76,87,0.08)", color: "#6d4c57" }}
-          >
-            <Star size={11} fill="#6d4c57" />
-            VIP Gold
-          </div>
-        </div>
-
-        {/* Stats Banner */}
-        <div
-          className="w-full rounded-[20px] p-5 mb-5 relative overflow-hidden"
-          style={{
-            background: "linear-gradient(135deg, #6d4c57 0%, #7e5865 100%)",
-            boxShadow: "0 8px 28px rgba(109,76,87,0.25)",
-          }}
-        >
-          <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -mr-16 -mt-16" />
-          <div className="relative z-10 flex justify-around">
-            {[
-              { value: "124", label: "Total Members" },
-              { value: "89",  label: "Active"        },
-              { value: "3",   label: "Levels"        },
-            ].map((s, i, arr) => (
-              <React.Fragment key={i}>
-                <div className="text-center">
-                  <p className="text-[28px] font-bold text-white leading-tight">{s.value}</p>
-                  <p className="text-[11px] text-white/70 mt-1 font-medium">{s.label}</p>
-                </div>
-                {i < arr.length - 1 && <div className="w-px bg-white/20" />}
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
-
-        {/* Invite Link */}
-        <div className="mb-5">
-          <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">
-            Invitation Link
-          </label>
-          <div className="flex gap-2">
-            <div
-              className="flex-1 bg-white px-3 py-3.5 rounded-[13px] flex items-center min-w-0"
-              style={{ border: "1px solid rgba(0,0,0,0.07)" }}
-            >
-              <LinkIcon size={14} className="text-gray-400 shrink-0 mr-2" />
-              <span className="text-[12px] text-gray-500 truncate font-mono">
-                https://app.crypto.co/ref/8X9A21
-              </span>
-            </div>
-            <button
-              className="w-12 h-12 rounded-[13px] flex items-center justify-center shrink-0 text-white"
-              style={{ background: "#6d4c57", boxShadow: "0 4px 12px rgba(109,76,87,0.25)" }}
-            >
-              <Copy size={17} />
-            </button>
-          </div>
-        </div>
-
-        {/* Commission Overview — all burgundy-family */}
-        <div className="mb-5">
-          <SectionHeader title="Commission Overview" />
-          <div className="grid grid-cols-2 gap-2.5">
-            <div
-              className="p-4 rounded-[16px] bg-white"
-              style={{ border: "1px solid rgba(109,76,87,0.14)", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}
-            >
-              <p className="text-[11px] text-gray-400 font-medium mb-1.5">Today's Profit</p>
-              <p className="text-[18px] font-bold" style={{ color: "#6d4c57" }}>+$124.50</p>
-              <div className="flex items-center gap-1 mt-1.5">
-                <TrendingUp size={11} color="#6d4c57" />
-                <span className="text-[11px] font-semibold text-gray-400">+8% vs yesterday</span>
-              </div>
-            </div>
-            <div
-              className="p-4 rounded-[16px] bg-white"
-              style={{ border: "1px solid rgba(109,76,87,0.10)", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}
-            >
-              <p className="text-[11px] text-gray-400 font-medium mb-1.5">Total Profit</p>
-              <p className="text-[18px] font-bold text-gray-900">$4,592.00</p>
-              <div className="flex items-center gap-1 mt-1.5">
-                <Award size={11} className="text-gray-400" />
-                <span className="text-[11px] font-semibold text-gray-400">All time</span>
-              </div>
+    <div style={{
+      display: "flex", alignItems: "center", justifyContent: "center",
+      minHeight: "100vh",
+      background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
+      padding: "20px 0",
+    }}>
+      {/* Phone frame */}
+      <div style={{
+        width: 390, height: 820,
+        background: C.bg, borderRadius: 40, overflow: "hidden",
+        boxShadow: "0 40px 80px rgba(0,0,0,0.5), inset 0 0 0 2px rgba(255,255,255,0.1)",
+        position: "relative", display: "flex", flexDirection: "column",
+        border: "6px solid #111",
+      }}>
+        {/* Status bar */}
+        <div style={{
+          height: 28, background: C.white, flexShrink: 0,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "0 20px", fontSize: 11, fontWeight: 600, color: C.text,
+        }}>
+          <span>9:41</span>
+          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+            <div style={{ width: 16, height: 8, border: `1.5px solid ${C.text}`, borderRadius: 2, display: "flex", alignItems: "center", padding: 1 }}>
+              <div style={{ width: "70%", height: "100%", background: C.text, borderRadius: 1 }} />
             </div>
           </div>
         </div>
 
-        {/* Level Breakdown */}
-        <div className="mb-5">
-          <SectionHeader title="Referral Structure" />
-          <div
-            className="bg-white rounded-[16px] overflow-hidden"
-            style={{ border: "1px solid rgba(0,0,0,0.05)", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}
-          >
-            {[
-              { level: "Level 1", count: 8,  commission: "10%", members: "8 members"  },
-              { level: "Level 2", count: 31, commission: "5%",  members: "31 members" },
-              { level: "Level 3", count: 85, commission: "2%",  members: "85 members" },
-            ].map((row, i, arr) => (
-              <div
-                key={i}
-                className="flex items-center justify-between px-4 py-3"
-                style={{ borderBottom: i < arr.length - 1 ? "1px solid rgba(0,0,0,0.05)" : "none" }}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
-                    style={{ background: AVATAR_PALETTE[i] }}
-                  >
-                    L{i + 1}
-                  </div>
-                  <div>
-                    <p className="text-[13px] font-semibold text-gray-900">{row.level}</p>
-                    <p className="text-[11px] text-gray-400">{row.members}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-[13px] font-bold" style={{ color: "#6d4c57" }}>{row.commission}</p>
-                  <p className="text-[11px] text-gray-400">commission</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Direct Members */}
-        <div className="mb-3">
-          <SectionHeader title="Direct Members" />
-          <div className="space-y-2.5">
-            {[
-              { id: "User8492",   level: "L1", profit: "+$450.00", date: "Oct 12, 2023" },
-              { id: "CryptoKing", level: "L1", profit: "+$210.00", date: "Oct 15, 2023" },
-              { id: "InvestPro",  level: "L1", profit: "+$125.50", date: "Oct 18, 2023" },
-              { id: "TradeMaster",level: "L2", profit: "+$88.00",  date: "Oct 22, 2023" },
-            ].map((member, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between px-3.5 py-3 rounded-[14px] bg-white"
-                style={{ border: "1px solid rgba(0,0,0,0.06)" }}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-[12px] shrink-0 text-white"
-                    style={{ background: AVATAR_PALETTE[i % AVATAR_PALETTE.length] }}
-                  >
-                    {member.id.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-[13px] font-semibold text-gray-900">{member.id}</p>
-                      <span
-                        className="text-[10px] px-1.5 py-0.5 rounded-[5px] font-bold"
-                        style={{ background: "rgba(109,76,87,0.1)", color: "#6d4c57" }}
-                      >
-                        {member.level}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-gray-400 mt-0.5">Joined {member.date}</p>
-                  </div>
-                </div>
-                <p className="text-[13px] font-bold" style={{ color: "#6d4c57" }}>{member.profit}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────── Records ─────────────────────────────── */
-
-const ALL_RECORDS = [
-  { id: "TXN-849201", type: "deposit",    label: "Deposit",    asset: "USDT", amount: "+5,000.00", date: "Oct 24 · 14:20", status: "completed"  },
-  { id: "TXN-392812", type: "withdraw",   label: "Withdraw",   asset: "USDT", amount: "-1,200.00", date: "Oct 22 · 09:12", status: "completed"  },
-  { id: "TXN-102948", type: "withdraw",   label: "Withdraw",   asset: "USDT", amount: "-450.00",   date: "Oct 21 · 16:45", status: "processing" },
-  { id: "TXN-593021", type: "deposit",    label: "Deposit",    asset: "BTC",  amount: "+0.0450",   date: "Oct 18 · 11:30", status: "completed"  },
-  { id: "TXN-849222", type: "deposit",    label: "Deposit",    asset: "ETH",  amount: "+0.5000",   date: "Oct 15 · 08:15", status: "pending"    },
-  { id: "TXN-112993", type: "withdraw",   label: "Withdraw",   asset: "USDT", amount: "-800.00",   date: "Oct 10 · 19:20", status: "completed"  },
-  { id: "CMM-229031", type: "commission", label: "Commission", asset: "USDT", amount: "+45.50",    date: "Oct 09 · 14:00", status: "completed"  },
-  { id: "CMM-119845", type: "commission", label: "Commission", asset: "USDT", amount: "+28.00",    date: "Oct 06 · 10:30", status: "completed"  },
-];
-
-const STATUS_MAP: Record<string, { label: string; color: string; bg: string; icon: React.ComponentType<any> }> = {
-  completed:  { label: "Completed",  color: "#059669", bg: "rgba(5,150,105,0.09)",  icon: CheckCircle2   },
-  processing: { label: "Processing", color: "#3b82f6", bg: "rgba(59,130,246,0.09)", icon: CircleDashed   },
-  pending:    { label: "Pending",    color: "#d97706", bg: "rgba(217,119,6,0.09)",  icon: Clock          },
-};
-
-function RecordsScreen() {
-  const [tab, setTab] = useState("all");
-
-  const filtered = tab === "all"
-    ? ALL_RECORDS
-    : ALL_RECORDS.filter((r) => r.type === tab);
-
-  return (
-    <div className="h-full flex flex-col bg-[#f8f8f8]">
-      {/* Sticky Header */}
-      <div
-        className="bg-white px-5 pt-3 pb-4 shrink-0"
-        style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}
-      >
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-[18px] font-bold text-gray-900">Records</h2>
-          <button
-            className="w-9 h-9 rounded-[10px] flex items-center justify-center"
-            style={{ background: "rgba(109,76,87,0.07)", border: "1px solid rgba(109,76,87,0.12)" }}
-          >
-            <SlidersHorizontal size={16} color="#6d4c57" />
-          </button>
-        </div>
-
-        <div className="relative mb-3.5">
-          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search by ID or amount"
-            className="w-full bg-gray-50 pl-9 pr-4 py-2.5 rounded-[11px] text-[13px] text-gray-700 placeholder-gray-400 focus:outline-none focus:bg-white transition-all"
-            style={{ border: "1px solid rgba(0,0,0,0.07)" }}
-          />
-        </div>
-
-        {/* Tabs — 4 options now */}
-        <div className="flex gap-1 p-1 rounded-[12px]" style={{ background: "#f3f3f3" }}>
-          {[
-            { key: "all",        label: "All"        },
-            { key: "deposit",    label: "Deposit"    },
-            { key: "withdraw",   label: "Withdraw"   },
-            { key: "commission", label: "Commission" },
-          ].map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className="flex-1 py-2 text-[11px] font-semibold rounded-[9px] transition-all"
-              style={{
-                background:  tab === t.key ? "#6d4c57" : "transparent",
-                color:       tab === t.key ? "white" : "#9ca3af",
-                boxShadow:   tab === t.key ? "0 2px 8px rgba(109,76,87,0.25)" : "none",
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Records List */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 pb-[100px] space-y-2.5" style={{ scrollbarWidth: "none" }}>
-        {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center pt-16 text-center">
-            <div
-              className="w-14 h-14 rounded-full flex items-center justify-center mb-4"
-              style={{ background: "rgba(109,76,87,0.08)" }}
-            >
-              <ClipboardList size={24} color="#6d4c57" />
-            </div>
-            <p className="text-[14px] font-semibold text-gray-500">No records found</p>
-            <p className="text-[12px] text-gray-400 mt-1">Try a different filter</p>
-          </div>
+        {/* App content */}
+        {!loggedIn ? (
+          <LoginScreen onLogin={() => setLoggedIn(true)} />
         ) : (
-          filtered.map((item, i) => {
-            const s = STATUS_MAP[item.status];
-            const StatusIcon = s.icon;
-            const isDeposit    = item.type === "deposit";
-            const isCommission = item.type === "commission";
-
-            return (
-              <div
-                key={i}
-                className="bg-white p-4 rounded-[16px]"
-                style={{ border: "1px solid rgba(0,0,0,0.05)", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
-                      style={{
-                        background: isDeposit || isCommission
-                          ? "rgba(16,185,129,0.10)"
-                          : "rgba(244,63,94,0.08)",
-                      }}
-                    >
-                      {isDeposit    && <ArrowDownLeft size={16} color="#10b981" />}
-                      {isCommission && <Gift          size={15} color="#10b981" />}
-                      {!isDeposit && !isCommission && <ArrowUpRight size={16} color="#f43f5e" />}
-                    </div>
-                    <div>
-                      <p className="text-[13px] font-bold text-gray-900">{item.label}</p>
-                      <p className="text-[11px] font-mono mt-0.5" style={{ color: "#9ca3af" }}>{item.id}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p
-                      className="text-[14px] font-bold"
-                      style={{ color: (isDeposit || isCommission) ? "#10b981" : "#374151" }}
-                    >
-                      {item.amount} {item.asset}
-                    </p>
-                  </div>
-                </div>
-                <div
-                  className="flex items-center justify-between mt-3 pt-3"
-                  style={{ borderTop: "1px solid rgba(0,0,0,0.05)" }}
-                >
-                  <div className="flex items-center gap-1.5 text-gray-400">
-                    <CalendarDays size={12} />
-                    <p className="text-[11px] font-medium">{item.date}</p>
-                  </div>
-                  <div
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide"
-                    style={{ background: s.bg, color: s.color }}
-                  >
-                    <StatusIcon
-                      size={11}
-                      className={item.status === "processing" ? "animate-spin" : ""}
-                    />
-                    {s.label}
-                  </div>
-                </div>
-              </div>
-            );
-          })
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
+            {renderContent()}
+            {!subPage && <BottomNav tab={tab} onTab={handleTab} />}
+          </div>
         )}
       </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────── Profile ─────────────────────────────── */
-
-function ProfileScreen({ onSettings, onLogout }: { onSettings: () => void; onLogout: () => void }) {
-  return (
-    <div className="h-full overflow-y-auto bg-[#f8f8f8]" style={{ scrollbarWidth: "none", paddingBottom: "96px" }}>
-      {/* Compact burgundy header */}
-      <div
-        className="px-6 pt-5 pb-12 relative overflow-hidden"
-        style={{ background: "linear-gradient(135deg, #6d4c57 0%, #5a3e48 100%)" }}
-      >
-        <div className="absolute top-0 right-0 w-56 h-56 bg-white/5 rounded-full -mr-20 -mt-20" />
-        <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/10 rounded-full -ml-10 -mb-10" />
-        <div className="relative z-10 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div
-              className="w-[58px] h-[58px] rounded-full flex items-center justify-center text-[20px] font-bold text-white shrink-0"
-              style={{ background: "rgba(255,255,255,0.18)", border: "2px solid rgba(255,255,255,0.25)" }}
-            >
-              JW
-            </div>
-            <div>
-              <h2 className="text-[20px] font-bold text-white leading-tight">John Wealth</h2>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="text-[12px] text-white/70 font-mono">ID: 8492019</span>
-                <button className="text-white/50"><Copy size={11} /></button>
-              </div>
-              <div
-                className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px]"
-                style={{ background: "linear-gradient(90deg, #f59e0b, #d97706)" }}
-              >
-                <Shield size={10} className="text-amber-950" />
-                <span className="text-[10px] font-bold text-amber-950 uppercase tracking-wide">VIP Gold</span>
-              </div>
-            </div>
-          </div>
-          <button
-            onClick={onSettings}
-            className="w-9 h-9 rounded-full flex items-center justify-center"
-            style={{ background: "rgba(255,255,255,0.12)" }}
-          >
-            <SettingsIcon size={17} className="text-white" />
-          </button>
-        </div>
-      </div>
-
-      {/* Float Stats Card */}
-      <div className="px-5 -mt-7 relative z-20 mb-5">
-        <div
-          className="bg-white rounded-[20px] p-4 flex justify-around"
-          style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.08)", border: "1px solid rgba(0,0,0,0.05)" }}
-        >
-          {[
-            { value: "3",   label: "Assets" },
-            { value: "L2",  label: "Level"  },
-            { value: "124", label: "Team"   },
-            { value: "99%", label: "Trust"  },
-          ].map((s, i, arr) => (
-            <React.Fragment key={i}>
-              <div className="text-center">
-                <p className="text-[17px] font-bold text-gray-900">{s.value}</p>
-                <p className="text-[10px] text-gray-400 uppercase font-semibold tracking-wider mt-0.5">{s.label}</p>
-              </div>
-              {i < arr.length - 1 && <div className="w-px bg-gray-100" />}
-            </React.Fragment>
-          ))}
-        </div>
-      </div>
-
-      {/* Menu Groups */}
-      <div className="px-5 space-y-4">
-        <MenuGroup
-          items={[
-            { icon: Shield,   label: "Security Center"  },
-            { icon: FileText, label: "Transaction Logs" },
-            { icon: Users,    label: "My Referrals"     },
-          ]}
-        />
-        <MenuGroup
-          items={[
-            { icon: Globe,      label: "Language", value: "English" },
-            { icon: HelpCircle, label: "Support"                    },
-            { icon: Info,       label: "About",    value: "v2.1.0"  },
-          ]}
-        />
-        <button
-          onClick={onLogout}
-          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-[16px] text-[14px] font-semibold text-rose-500 bg-white transition-all active:opacity-70"
-          style={{ border: "1px solid rgba(244,63,94,0.15)", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}
-        >
-          <LogOut size={16} />
-          Sign Out
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function MenuGroup({ items }: { items: { icon: React.ComponentType<any>; label: string; value?: string }[] }) {
-  return (
-    <div
-      className="bg-white rounded-[18px] overflow-hidden"
-      style={{ border: "1px solid rgba(0,0,0,0.05)", boxShadow: "0 1px 6px rgba(0,0,0,0.04)" }}
-    >
-      {items.map((item, i) => (
-        <div
-          key={i}
-          className="flex items-center justify-between px-4 py-3.5 cursor-pointer active:bg-gray-50"
-          style={{ borderBottom: i < items.length - 1 ? "1px solid rgba(0,0,0,0.05)" : "none" }}
-        >
-          <div className="flex items-center gap-3">
-            <div
-              className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0"
-              style={{ background: "rgba(109,76,87,0.08)" }}
-            >
-              <item.icon size={15} color="#6d4c57" />
-            </div>
-            <span className="text-[14px] font-semibold text-gray-700">{item.label}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            {item.value && <span className="text-[12px] text-gray-400 font-medium">{item.value}</span>}
-            <ChevronRight size={16} className="text-gray-300" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ─────────────────────────────── Settings ─────────────────────────────── */
-
-function SettingsScreen({ onBack, onLogout }: { onBack: () => void; onLogout: () => void }) {
-  const [notifOn,   setNotifOn]   = useState(true);
-  const [biometric, setBiometric] = useState(false);
-  const [darkMode,  setDarkMode]  = useState(false);
-
-  return (
-    <div className="h-full bg-[#f8f8f8] flex flex-col">
-      <div
-        className="bg-white px-5 pt-3 pb-4 flex items-center gap-3 shrink-0"
-        style={{ borderBottom: "1px solid rgba(0,0,0,0.06)" }}
-      >
-        <button
-          onClick={onBack}
-          className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-50"
-          style={{ border: "1px solid rgba(0,0,0,0.07)" }}
-        >
-          <ChevronLeft size={18} className="text-gray-600" />
-        </button>
-        <h2 className="text-[18px] font-bold text-gray-900">Settings</h2>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5" style={{ scrollbarWidth: "none", paddingBottom: "24px" }}>
-        <SettingsGroup
-          title="Preferences"
-          items={[
-            {
-              icon: Globe,
-              label: "Language",
-              right: <RightChevron value="English" />,
-            },
-            {
-              icon: CreditCard,
-              label: "Currency",
-              right: <RightChevron value="USD" />,
-            },
-            {
-              icon: BellIcon,
-              label: "Push Notifications",
-              right: <Toggle value={notifOn} onChange={setNotifOn} />,
-            },
-            {
-              icon: SettingsIcon,
-              label: "Dark Mode",
-              right: <Toggle value={darkMode} onChange={setDarkMode} />,
-            },
-          ]}
-        />
-
-        <SettingsGroup
-          title="Security"
-          items={[
-            { icon: Lock,        label: "Login Password", right: <RightChevron /> },
-            {
-              icon: Shield,
-              label: "Fund Password",
-              right: (
-                <span
-                  className="text-[11px] font-semibold px-2 py-0.5 rounded-[6px]"
-                  style={{ background: "rgba(245,158,11,0.12)", color: "#d97706" }}
-                >
-                  Not Set
-                </span>
-              ),
-            },
-            {
-              icon: Fingerprint,
-              label: "Face ID / Touch ID",
-              right: <Toggle value={biometric} onChange={setBiometric} />,
-            },
-          ]}
-        />
-
-        <SettingsGroup
-          title="Account"
-          items={[
-            { icon: User,       label: "Profile Settings", right: <RightChevron /> },
-            { icon: HelpCircle, label: "Help & Support",   right: <RightChevron /> },
-            { icon: Info,       label: "Privacy Policy",   right: <RightChevron /> },
-            {
-              icon: FileText,
-              label: "App Version",
-              right: <span className="text-[12px] text-gray-400 font-medium">v2.1.0</span>,
-            },
-          ]}
-        />
-
-        <button
-          onClick={onLogout}
-          className="w-full flex items-center justify-center gap-2 py-4 text-[14px] font-bold text-white rounded-[14px] transition-all active:opacity-80"
-          style={{
-            background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
-            boxShadow: "0 6px 18px rgba(239,68,68,0.30)",
-          }}
-        >
-          <LogOut size={17} />
-          Log Out
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function RightChevron({ value }: { value?: string }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      {value && <span className="text-[13px] text-gray-400">{value}</span>}
-      <ChevronRight size={15} className="text-gray-300" />
-    </div>
-  );
-}
-
-function SettingsGroup({
-  title,
-  items,
-}: {
-  title: string;
-  items: { icon: React.ComponentType<any>; label: string; right: React.ReactNode }[];
-}) {
-  return (
-    <div>
-      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">
-        {title}
-      </p>
-      <div
-        className="bg-white rounded-[16px] overflow-hidden"
-        style={{ border: "1px solid rgba(0,0,0,0.05)", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}
-      >
-        {items.map((item, i) => (
-          <div
-            key={i}
-            className="flex items-center justify-between px-4 py-3.5 cursor-pointer active:bg-gray-50"
-            style={{ borderBottom: i < items.length - 1 ? "1px solid rgba(0,0,0,0.05)" : "none" }}
-          >
-            <div className="flex items-center gap-3">
-              <div
-                className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0"
-                style={{ background: "rgba(109,76,87,0.08)" }}
-              >
-                <item.icon size={15} color="#6d4c57" />
-              </div>
-              <span className="text-[14px] font-semibold text-gray-700">{item.label}</span>
-            </div>
-            {item.right}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* Toggle with smooth CSS transition on thumb */
-function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      onClick={() => onChange(!value)}
-      className="w-11 h-6 rounded-full relative shrink-0"
-      style={{ background: value ? "#6d4c57" : "#d1d5db", transition: "background 0.2s ease" }}
-    >
-      <div
-        className="w-[18px] h-[18px] bg-white rounded-full absolute top-[3px] shadow-sm"
-        style={{
-          left: value ? "calc(100% - 21px)" : "3px",
-          transition: "left 0.2s ease",
-        }}
-      />
-    </button>
-  );
-}
-
-/* ─────────────────────────────── Shared Helpers ─────────────────────────────── */
-
-function SectionHeader({ title, actionLabel }: { title: string; actionLabel?: string }) {
-  return (
-    <div className="flex items-center justify-between mb-3">
-      <h3 className="text-[14px] font-bold text-gray-900">{title}</h3>
-      {actionLabel && (
-        <button className="text-[12px] font-semibold" style={{ color: "#6d4c57" }}>
-          {actionLabel}
-        </button>
-      )}
     </div>
   );
 }
