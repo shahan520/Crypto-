@@ -42,6 +42,9 @@ import {
   Award,
   CalendarDays,
   Star,
+  X,
+  AlertCircle,
+  CheckCheck,
 } from "lucide-react";
 
 type Page = "login" | "home" | "service" | "menu" | "records" | "profile" | "settings";
@@ -516,119 +519,378 @@ function HomeScreen({ onNavigate }: { onNavigate: (p: Page) => void }) {
 
 /* ─────────────────────────────── Wallet (Service) ─────────────────────────────── */
 
+const DEMO_TRC20_ADDRESS = "TDqfQ6tLFGGArRERHvvR3z3JF5QKekUvM1";
+
 function WalletScreen() {
+  const [showDeposit, setShowDeposit] = useState(false);
+
   return (
-    <div className="h-full overflow-y-auto bg-[#f8f8f8]" style={{ scrollbarWidth: "none", paddingBottom: "96px" }}>
-      {/* Header panel */}
+    <div className="h-full relative bg-[#f8f8f8]">
+      {/* Scrollable content */}
+      <div className="h-full overflow-y-auto" style={{ scrollbarWidth: "none", paddingBottom: "96px" }}>
+        {/* Header panel */}
+        <div
+          className="bg-white px-6 pt-3 pb-6"
+          style={{ borderRadius: "0 0 24px 24px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}
+        >
+          <div className="flex justify-between items-center mb-5">
+            <h2 className="text-[18px] font-bold text-gray-900">My Wallet</h2>
+            <div
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold text-gray-500"
+              style={{ background: "#f5f5f5", border: "1px solid rgba(0,0,0,0.07)" }}
+            >
+              USD <ChevronDown size={13} />
+            </div>
+          </div>
+
+          <div className="text-center mb-6">
+            <p className="text-[11px] text-gray-400 uppercase tracking-widest font-semibold mb-2">
+              Available Balance
+            </p>
+            <div className="flex items-baseline justify-center gap-1">
+              <span className="text-[17px] font-semibold text-gray-400">$</span>
+              <span className="text-[38px] font-bold text-gray-900 tracking-tight leading-none">124,592</span>
+              <span className="text-[17px] font-semibold text-gray-400">.50</span>
+            </div>
+            <div className="flex items-center justify-center gap-1.5 mt-2">
+              <TrendingUp size={13} className="text-emerald-500" />
+              <span className="text-[12px] text-emerald-600 font-semibold">+$2,840 this month</span>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowDeposit(true)}
+              className="flex-1 text-white font-semibold text-[14px] py-3 rounded-[13px] transition-all active:scale-[0.98]"
+              style={{
+                background: "linear-gradient(135deg, #6d4c57 0%, #7e5865 100%)",
+                boxShadow: "0 6px 20px rgba(109,76,87,0.28)",
+              }}
+            >
+              Deposit
+            </button>
+            <button
+              className="flex-1 font-semibold text-[14px] py-3 rounded-[13px] transition-all active:scale-[0.98]"
+              style={{ background: "#f5f5f5", color: "#374151", border: "1px solid rgba(0,0,0,0.07)" }}
+            >
+              Withdraw
+            </button>
+          </div>
+        </div>
+
+        {/* Stats Row */}
+        <div className="px-5 mt-4 mb-4">
+          <div className="grid grid-cols-3 gap-2.5">
+            {[
+              { label: "Total Income",    value: "+$8,450",  color: "#10b981", bg: "rgba(16,185,129,0.07)",  border: "rgba(16,185,129,0.15)"  },
+              { label: "Total Deposits",  value: "$20,650",  color: "#6d4c57", bg: "rgba(109,76,87,0.07)",   border: "rgba(109,76,87,0.15)"   },
+              { label: "Total Withdrawn", value: "$12,200",  color: "#f43f5e", bg: "rgba(244,63,94,0.07)",   border: "rgba(244,63,94,0.15)"   },
+            ].map((s, i) => (
+              <div
+                key={i}
+                className="rounded-[14px] p-3 text-center"
+                style={{ background: s.bg, border: `1px solid ${s.border}` }}
+              >
+                <p className="text-[11px] text-gray-500 font-medium leading-tight mb-1">{s.label}</p>
+                <p className="text-[14px] font-bold leading-tight" style={{ color: s.color }}>{s.value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Asset List */}
+        <div className="px-5">
+          <SectionHeader title="My Assets" />
+          <div className="space-y-2.5">
+            {[
+              { symbol: "BTC",  name: "Bitcoin",  amount: "1.4500",   val: "$84,245.00", change: "+3.2%", up: true,  color: "#F7931A", bg: "rgba(247,147,26,0.10)"  },
+              { symbol: "ETH",  name: "Ethereum", amount: "12.8000",  val: "$32,150.00", change: "+1.8%", up: true,  color: "#627EEA", bg: "rgba(98,126,234,0.10)"  },
+              { symbol: "USDT", name: "Tether",   amount: "8,197.50", val: "$8,197.50",  change: "0.00%", up: true,  color: "#26A17B", bg: "rgba(38,161,123,0.10)"  },
+            ].map((asset, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between p-4 rounded-[16px] bg-white"
+                style={{ border: "1px solid rgba(0,0,0,0.05)", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-[11px] shrink-0"
+                    style={{ background: asset.bg, color: asset.color }}
+                  >
+                    {asset.symbol}
+                  </div>
+                  <div>
+                    <p className="text-[14px] font-bold text-gray-900 leading-tight">{asset.symbol}</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">{asset.name}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-[14px] font-bold text-gray-900">{asset.amount}</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">≈ {asset.val}</p>
+                  <div
+                    className="text-[10px] font-bold mt-1 inline-block px-1.5 py-0.5 rounded-[4px]"
+                    style={{
+                      color:      asset.up ? "#10b981" : "#f43f5e",
+                      background: asset.up ? "rgba(16,185,129,0.1)" : "rgba(244,63,94,0.1)",
+                    }}
+                  >
+                    {asset.change}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Deposit modal overlay */}
+      {showDeposit && <DepositModal onClose={() => setShowDeposit(false)} />}
+    </div>
+  );
+}
+
+/* ─────────────────────────────── QR Code ─────────────────────────────── */
+
+function QRCode({ size = 148 }: { size?: number }) {
+  const N = 21;
+  const cell = (size - 12) / N; // 6px padding each side
+
+  // Finder pattern: returns true=black, false=white, null=not finder
+  const finder = (r: number, c: number, dr: number, dc: number): boolean => {
+    const lr = r - dr, lc = c - dc;
+    if (lr === 0 || lr === 6 || lc === 0 || lc === 6) return true;
+    if (lr >= 2 && lr <= 4 && lc >= 2 && lc <= 4) return true;
+    return false;
+  };
+
+  const cellValue = (r: number, c: number): boolean => {
+    // Separator quiet zone (1px white border around each finder)
+    const inSep =
+      (r <= 7 && c === 7) || (r === 7 && c <= 7) ||
+      (r <= 7 && c === N - 8) || (r === 7 && c >= N - 8) ||
+      (r >= N - 8 && c === 7) || (r === N - 7 && c <= 7);
+    if (inSep) return false;
+
+    // Top-left finder
+    if (r < 7 && c < 7) return finder(r, c, 0, 0);
+    // Top-right finder
+    if (r < 7 && c >= N - 7) return finder(r, c, 0, N - 7);
+    // Bottom-left finder
+    if (r >= N - 7 && c < 7) return finder(r, c, N - 7, 0);
+
+    // Timing strips
+    if (r === 6 && c >= 8 && c <= N - 9) return c % 2 === 0;
+    if (c === 6 && r >= 8 && r <= N - 9) return r % 2 === 0;
+
+    // Alignment pattern (centre at r=16,c=16 for version 1 extended)
+    if (r >= 14 && r <= 18 && c >= 14 && c <= 18) {
+      if (r === 14 || r === 18 || c === 14 || c === 18) return true;
+      if (r === 16 && c === 16) return true;
+      return false;
+    }
+
+    // Data modules — deterministic pseudo-random
+    const h = ((r * 1103515245 + c * 1664525 + 1013904223) >>> 0) % 1000;
+    return h < 470;
+  };
+
+  const rows: React.ReactNode[] = [];
+  for (let r = 0; r < N; r++) {
+    const cells: React.ReactNode[] = [];
+    for (let c = 0; c < N; c++) {
+      cells.push(
+        <div
+          key={c}
+          style={{
+            width: cell,
+            height: cell,
+            background: cellValue(r, c) ? "#1a1a1a" : "transparent",
+            borderRadius: cellValue(r, c) ? 1 : 0,
+          }}
+        />
+      );
+    }
+    rows.push(
+      <div key={r} style={{ display: "flex" }}>{cells}</div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        background: "white",
+        padding: 6,
+        borderRadius: 12,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        boxShadow: "0 2px 12px rgba(0,0,0,0.10)",
+      }}
+    >
+      {rows}
+    </div>
+  );
+}
+
+/* ─────────────────────────────── Deposit Modal ─────────────────────────────── */
+
+function DepositModal({ onClose }: { onClose: () => void }) {
+  const [network,  setNetwork]  = useState<"TRC20" | "ERC20" | "BEP20">("TRC20");
+  const [copied,   setCopied]   = useState(false);
+
+  const addresses: Record<string, string> = {
+    TRC20: DEMO_TRC20_ADDRESS,
+    ERC20: "0x4A3b8C9D1e2F5a6B7c8D9E0f1A2b3C4d5E6f7A8b",
+    BEP20: "bnb1qp6f4qzge8p2j0l9mvqk4v2t5n8xr3hyd4qwu",
+  };
+
+  const address = addresses[network];
+
+  const handleCopy = () => {
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const networkColors: Record<string, { bg: string; color: string; border: string }> = {
+    TRC20: { bg: "rgba(239,68,68,0.08)",  color: "#dc2626", border: "rgba(239,68,68,0.20)"  },
+    ERC20: { bg: "rgba(98,126,234,0.08)", color: "#627EEA", border: "rgba(98,126,234,0.20)" },
+    BEP20: { bg: "rgba(245,158,11,0.08)", color: "#d97706", border: "rgba(245,158,11,0.20)" },
+  };
+
+  return (
+    /* Backdrop */
+    <div
+      className="absolute inset-0 z-50 flex flex-col justify-end"
+      style={{ background: "rgba(0,0,0,0.50)" }}
+      onClick={onClose}
+    >
+      {/* Sheet */}
       <div
-        className="bg-white px-6 pt-3 pb-6"
-        style={{ borderRadius: "0 0 24px 24px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}
+        className="bg-white w-full flex flex-col"
+        style={{ borderRadius: "24px 24px 0 0", maxHeight: "88%" }}
+        onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-between items-center mb-5">
-          <h2 className="text-[18px] font-bold text-gray-900">My Wallet</h2>
+        {/* Handle bar */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full bg-gray-200" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-3">
+          <div>
+            <h3 className="text-[17px] font-bold text-gray-900">Deposit USDT</h3>
+            <p className="text-[12px] text-gray-400 mt-0.5">Send only USDT to this address</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
+          >
+            <X size={16} className="text-gray-500" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto px-5 pb-8" style={{ scrollbarWidth: "none" }}>
+          {/* Network selector */}
+          <div className="mb-5">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+              Select Network
+            </p>
+            <div className="flex gap-2">
+              {(["TRC20", "ERC20", "BEP20"] as const).map((n) => {
+                const active = network === n;
+                const nc = networkColors[n];
+                return (
+                  <button
+                    key={n}
+                    onClick={() => setNetwork(n)}
+                    className="flex-1 py-2.5 rounded-[12px] text-[13px] font-bold transition-all"
+                    style={{
+                      background: active ? nc.bg : "#f5f5f5",
+                      color:      active ? nc.color : "#9ca3af",
+                      border:     active ? `1px solid ${nc.border}` : "1px solid transparent",
+                    }}
+                  >
+                    {n}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* QR code */}
+          <div className="flex justify-center mb-5">
+            <div className="flex flex-col items-center gap-3">
+              <div
+                className="p-3 rounded-[18px]"
+                style={{ background: "#fafafa", border: "1px solid rgba(0,0,0,0.07)" }}
+              >
+                <QRCode size={148} />
+              </div>
+              <div
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold"
+                style={{ background: networkColors[network].bg, color: networkColors[network].color }}
+              >
+                <div className="w-1.5 h-1.5 rounded-full" style={{ background: networkColors[network].color }} />
+                {network} Network
+              </div>
+            </div>
+          </div>
+
+          {/* Address */}
+          <div className="mb-4">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+              Wallet Address
+            </p>
+            <div
+              className="flex items-center gap-3 p-3.5 rounded-[14px]"
+              style={{ background: "#f8f8f8", border: "1px solid rgba(0,0,0,0.07)" }}
+            >
+              <p
+                className="flex-1 text-[12px] font-mono text-gray-700 break-all leading-relaxed"
+              >
+                {address}
+              </p>
+              <button
+                onClick={handleCopy}
+                className="shrink-0 w-9 h-9 rounded-[10px] flex items-center justify-center transition-all"
+                style={{
+                  background: copied ? "rgba(16,185,129,0.10)" : "rgba(109,76,87,0.08)",
+                  border:     copied ? "1px solid rgba(16,185,129,0.20)" : "1px solid rgba(109,76,87,0.12)",
+                }}
+              >
+                {copied
+                  ? <CheckCheck size={15} color="#10b981" />
+                  : <Copy size={15} color="#6d4c57" />}
+              </button>
+            </div>
+            {copied && (
+              <p className="text-[11px] text-emerald-600 font-semibold mt-1.5 text-center">
+                Address copied to clipboard
+              </p>
+            )}
+          </div>
+
+          {/* Important notices */}
           <div
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold text-gray-500"
-            style={{ background: "#f5f5f5", border: "1px solid rgba(0,0,0,0.07)" }}
+            className="rounded-[14px] p-4 space-y-2.5"
+            style={{ background: "rgba(109,76,87,0.04)", border: "1px solid rgba(109,76,87,0.10)" }}
           >
-            USD <ChevronDown size={13} />
-          </div>
-        </div>
-
-        <div className="text-center mb-6">
-          <p className="text-[11px] text-gray-400 uppercase tracking-widest font-semibold mb-2">
-            Available Balance
-          </p>
-          <div className="flex items-baseline justify-center gap-1">
-            <span className="text-[17px] font-semibold text-gray-400">$</span>
-            <span className="text-[38px] font-bold text-gray-900 tracking-tight leading-none">124,592</span>
-            <span className="text-[17px] font-semibold text-gray-400">.50</span>
-          </div>
-          <div className="flex items-center justify-center gap-1.5 mt-2">
-            <TrendingUp size={13} className="text-emerald-500" />
-            <span className="text-[12px] text-emerald-600 font-semibold">+$2,840 this month</span>
-          </div>
-        </div>
-
-        <div className="flex gap-3">
-          <button
-            className="flex-1 text-white font-semibold text-[14px] py-3 rounded-[13px] transition-all active:scale-[0.98]"
-            style={{
-              background: "linear-gradient(135deg, #6d4c57 0%, #7e5865 100%)",
-              boxShadow: "0 6px 20px rgba(109,76,87,0.28)",
-            }}
-          >
-            Deposit
-          </button>
-          <button
-            className="flex-1 font-semibold text-[14px] py-3 rounded-[13px] transition-all active:scale-[0.98]"
-            style={{ background: "#f5f5f5", color: "#374151", border: "1px solid rgba(0,0,0,0.07)" }}
-          >
-            Withdraw
-          </button>
-        </div>
-      </div>
-
-      {/* Stats Row — fixed min font size to 11px */}
-      <div className="px-5 mt-4 mb-4">
-        <div className="grid grid-cols-3 gap-2.5">
-          {[
-            { label: "Total Income",    value: "+$8,450",  color: "#10b981", bg: "rgba(16,185,129,0.07)",  border: "rgba(16,185,129,0.15)"  },
-            { label: "Total Deposits",  value: "$20,650",  color: "#6d4c57", bg: "rgba(109,76,87,0.07)",   border: "rgba(109,76,87,0.15)"   },
-            { label: "Total Withdrawn", value: "$12,200",  color: "#f43f5e", bg: "rgba(244,63,94,0.07)",   border: "rgba(244,63,94,0.15)"   },
-          ].map((s, i) => (
-            <div
-              key={i}
-              className="rounded-[14px] p-3 text-center"
-              style={{ background: s.bg, border: `1px solid ${s.border}` }}
-            >
-              <p className="text-[11px] text-gray-500 font-medium leading-tight mb-1">{s.label}</p>
-              <p className="text-[14px] font-bold leading-tight" style={{ color: s.color }}>{s.value}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Asset List */}
-      <div className="px-5">
-        <SectionHeader title="My Assets" />
-        <div className="space-y-2.5">
-          {[
-            { symbol: "BTC",  name: "Bitcoin",  amount: "1.4500",    val: "$84,245.00", change: "+3.2%", up: true,  color: "#F7931A", bg: "rgba(247,147,26,0.10)"  },
-            { symbol: "ETH",  name: "Ethereum", amount: "12.8000",   val: "$32,150.00", change: "+1.8%", up: true,  color: "#627EEA", bg: "rgba(98,126,234,0.10)"  },
-            { symbol: "USDT", name: "Tether",   amount: "8,197.50",  val: "$8,197.50",  change: "0.00%", up: true,  color: "#26A17B", bg: "rgba(38,161,123,0.10)"  },
-          ].map((asset, i) => (
-            <div
-              key={i}
-              className="flex items-center justify-between p-4 rounded-[16px] bg-white"
-              style={{ border: "1px solid rgba(0,0,0,0.05)", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-[11px] shrink-0"
-                  style={{ background: asset.bg, color: asset.color }}
-                >
-                  {asset.symbol}
-                </div>
-                <div>
-                  <p className="text-[14px] font-bold text-gray-900 leading-tight">{asset.symbol}</p>
-                  <p className="text-[11px] text-gray-400 mt-0.5">{asset.name}</p>
-                </div>
+            <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: "#6d4c57" }}>
+              Important
+            </p>
+            {[
+              `Only send USDT via the ${network} network to this address.`,
+              "Minimum deposit: 10 USDT · Confirmations required: 20",
+              "Sending any other asset will result in permanent loss.",
+            ].map((note, i) => (
+              <div key={i} className="flex items-start gap-2">
+                <AlertCircle size={13} className="shrink-0 mt-0.5" style={{ color: "#6d4c57" }} />
+                <p className="text-[12px] text-gray-600 leading-snug">{note}</p>
               </div>
-              <div className="text-right">
-                <p className="text-[14px] font-bold text-gray-900">{asset.amount}</p>
-                <p className="text-[11px] text-gray-400 mt-0.5">≈ {asset.val}</p>
-                <div
-                  className="text-[10px] font-bold mt-1 inline-block px-1.5 py-0.5 rounded-[4px]"
-                  style={{
-                    color:      asset.up ? "#10b981" : "#f43f5e",
-                    background: asset.up ? "rgba(16,185,129,0.1)" : "rgba(244,63,94,0.1)",
-                  }}
-                >
-                  {asset.change}
-                </div>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>
