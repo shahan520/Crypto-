@@ -522,7 +522,8 @@ function HomeScreen({ onNavigate }: { onNavigate: (p: Page) => void }) {
 const DEMO_TRC20_ADDRESS = "TDqfQ6tLFGGArRERHvvR3z3JF5QKekUvM1";
 
 function WalletScreen() {
-  const [showDeposit, setShowDeposit] = useState(false);
+  const [showDeposit,  setShowDeposit]  = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
 
   return (
     <div className="h-full relative bg-[#f8f8f8]">
@@ -570,6 +571,7 @@ function WalletScreen() {
               Deposit
             </button>
             <button
+              onClick={() => setShowWithdraw(true)}
               className="flex-1 font-semibold text-[14px] py-3 rounded-[13px] transition-all active:scale-[0.98]"
               style={{ background: "#f5f5f5", color: "#374151", border: "1px solid rgba(0,0,0,0.07)" }}
             >
@@ -644,7 +646,9 @@ function WalletScreen() {
       </div>
 
       {/* Deposit modal overlay */}
-      {showDeposit && <DepositModal onClose={() => setShowDeposit(false)} />}
+      {showDeposit  && <DepositModal  onClose={() => setShowDeposit(false)}  />}
+      {/* Withdraw modal overlay */}
+      {showWithdraw && <WithdrawModal onClose={() => setShowWithdraw(false)} />}
     </div>
   );
 }
@@ -891,6 +895,299 @@ function DepositModal({ onClose }: { onClose: () => void }) {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────── Withdraw Modal ─────────────────────────────── */
+
+const WITHDRAWAL_FEE_RATE = 0.15;
+
+function WithdrawModal({ onClose }: { onClose: () => void }) {
+  const [address,  setAddress]  = useState("");
+  const [amount,   setAmount]   = useState("");
+  const [network,  setNetwork]  = useState<"TRC20" | "ERC20" | "BEP20">("TRC20");
+  const [fundPwd,  setFundPwd]  = useState("");
+  const [showPwd,  setShowPwd]  = useState(false);
+  const [submitted,setSubmitted]= useState(false);
+
+  const availableBalance = 8197.50;
+  const numAmount   = parseFloat(amount) || 0;
+  const fee         = numAmount * WITHDRAWAL_FEE_RATE;
+  const youReceive  = numAmount - fee;
+  const isValid     = numAmount >= 10 && numAmount <= availableBalance && address.length >= 20 && fundPwd.length >= 4;
+
+  const networkColors: Record<string, { bg: string; color: string; border: string }> = {
+    TRC20: { bg: "rgba(239,68,68,0.08)",  color: "#dc2626", border: "rgba(239,68,68,0.20)"  },
+    ERC20: { bg: "rgba(98,126,234,0.08)", color: "#627EEA", border: "rgba(98,126,234,0.20)" },
+    BEP20: { bg: "rgba(245,158,11,0.08)", color: "#d97706", border: "rgba(245,158,11,0.20)" },
+  };
+
+  const handleSetMax = () => setAmount(availableBalance.toFixed(2));
+
+  if (submitted) {
+    return (
+      <div
+        className="absolute inset-0 z-50 flex flex-col justify-end"
+        style={{ background: "rgba(0,0,0,0.50)" }}
+        onClick={onClose}
+      >
+        <div
+          className="bg-white w-full flex flex-col items-center px-6 py-10"
+          style={{ borderRadius: "24px 24px 0 0" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div
+            className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+            style={{ background: "rgba(16,185,129,0.10)" }}
+          >
+            <CheckCheck size={30} color="#10b981" />
+          </div>
+          <h3 className="text-[17px] font-bold text-gray-900 mb-1">Request Submitted</h3>
+          <p className="text-[13px] text-gray-400 text-center mb-1">Your withdrawal is under review.</p>
+          <p className="text-[13px] text-gray-400 text-center mb-6">
+            Expected arrival: <span className="font-semibold text-gray-700">1–3 business days</span>
+          </p>
+          <div
+            className="w-full rounded-[14px] p-4 mb-6 space-y-2"
+            style={{ background: "#f8f8f8", border: "1px solid rgba(0,0,0,0.06)" }}
+          >
+            <div className="flex justify-between text-[13px]">
+              <span className="text-gray-400">Amount sent</span>
+              <span className="font-bold text-gray-900">{numAmount.toFixed(2)} USDT</span>
+            </div>
+            <div className="flex justify-between text-[13px]">
+              <span className="text-gray-400">Fee (15%)</span>
+              <span className="font-bold text-rose-500">-{fee.toFixed(2)} USDT</span>
+            </div>
+            <div
+              className="flex justify-between text-[13px] pt-2"
+              style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}
+            >
+              <span className="text-gray-400">You receive</span>
+              <span className="font-bold" style={{ color: "#6d4c57" }}>{youReceive.toFixed(2)} USDT</span>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-full py-4 text-white font-bold text-[15px] rounded-[14px]"
+            style={{
+              background: "linear-gradient(135deg, #6d4c57 0%, #7e5865 100%)",
+              boxShadow: "0 6px 20px rgba(109,76,87,0.28)",
+            }}
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="absolute inset-0 z-50 flex flex-col justify-end"
+      style={{ background: "rgba(0,0,0,0.50)" }}
+      onClick={onClose}
+    >
+      <div
+        className="bg-white w-full flex flex-col"
+        style={{ borderRadius: "24px 24px 0 0", maxHeight: "92%" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full bg-gray-200" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-3">
+          <div>
+            <h3 className="text-[17px] font-bold text-gray-900">Withdraw USDT</h3>
+            <p className="text-[12px] text-gray-400 mt-0.5">Available: {availableBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })} USDT</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
+          >
+            <X size={16} className="text-gray-500" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto px-5 pb-8" style={{ scrollbarWidth: "none" }}>
+          {/* Network selector */}
+          <div className="mb-4">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+              Network
+            </p>
+            <div className="flex gap-2">
+              {(["TRC20", "ERC20", "BEP20"] as const).map((n) => {
+                const active = network === n;
+                const nc = networkColors[n];
+                return (
+                  <button
+                    key={n}
+                    onClick={() => setNetwork(n)}
+                    className="flex-1 py-2 rounded-[11px] text-[13px] font-bold transition-all"
+                    style={{
+                      background: active ? nc.bg : "#f5f5f5",
+                      color:      active ? nc.color : "#9ca3af",
+                      border:     active ? `1px solid ${nc.border}` : "1px solid transparent",
+                    }}
+                  >
+                    {n}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Recipient address */}
+          <div className="mb-4">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+              Recipient Address
+            </p>
+            <input
+              type="text"
+              placeholder={`Enter ${network} wallet address`}
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className="w-full bg-gray-50 px-4 py-3.5 rounded-[13px] text-[13px] text-gray-800 placeholder-gray-400 font-mono focus:outline-none transition-all"
+              style={{
+                border: address.length > 0 && address.length < 20
+                  ? "1px solid rgba(239,68,68,0.4)"
+                  : address.length >= 20
+                  ? "1px solid rgba(16,185,129,0.35)"
+                  : "1px solid rgba(0,0,0,0.08)",
+              }}
+            />
+            {address.length > 0 && address.length < 20 && (
+              <p className="text-[11px] text-rose-500 mt-1 font-medium">Address appears too short</p>
+            )}
+          </div>
+
+          {/* Amount input */}
+          <div className="mb-4">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+              Amount (USDT)
+            </p>
+            <div className="relative">
+              <input
+                type="number"
+                placeholder="0.00"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="w-full bg-gray-50 px-4 py-3.5 pr-16 rounded-[13px] text-[15px] font-bold text-gray-800 placeholder-gray-300 focus:outline-none transition-all"
+                style={{
+                  border: numAmount > availableBalance
+                    ? "1px solid rgba(239,68,68,0.4)"
+                    : numAmount > 0
+                    ? "1px solid rgba(109,76,87,0.25)"
+                    : "1px solid rgba(0,0,0,0.08)",
+                }}
+              />
+              <button
+                onClick={handleSetMax}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-bold px-2 py-1 rounded-[7px]"
+                style={{ background: "rgba(109,76,87,0.09)", color: "#6d4c57" }}
+              >
+                MAX
+              </button>
+            </div>
+            {numAmount > 0 && numAmount < 10 && (
+              <p className="text-[11px] text-rose-500 mt-1 font-medium">Minimum withdrawal is 10 USDT</p>
+            )}
+            {numAmount > availableBalance && (
+              <p className="text-[11px] text-rose-500 mt-1 font-medium">Exceeds available balance</p>
+            )}
+          </div>
+
+          {/* Fee breakdown — always visible when amount > 0 */}
+          {numAmount > 0 && (
+            <div
+              className="rounded-[14px] p-4 mb-4"
+              style={{ background: "#f8f9fa", border: "1px solid rgba(0,0,0,0.07)" }}
+            >
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[13px] text-gray-500">Withdrawal amount</span>
+                  <span className="text-[13px] font-semibold text-gray-900">{numAmount.toFixed(2)} USDT</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[13px] text-gray-500">Service fee</span>
+                    <span
+                      className="text-[10px] font-bold px-1.5 py-0.5 rounded-[5px]"
+                      style={{ background: "rgba(239,68,68,0.09)", color: "#dc2626" }}
+                    >
+                      15%
+                    </span>
+                  </div>
+                  <span className="text-[13px] font-semibold text-rose-500">−{fee.toFixed(2)} USDT</span>
+                </div>
+                <div
+                  className="flex items-center justify-between pt-2.5"
+                  style={{ borderTop: "1px dashed rgba(0,0,0,0.08)" }}
+                >
+                  <span className="text-[13px] font-bold text-gray-700">You receive</span>
+                  <span className="text-[15px] font-bold" style={{ color: youReceive > 0 ? "#6d4c57" : "#dc2626" }}>
+                    {youReceive > 0 ? youReceive.toFixed(2) : "0.00"} USDT
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Fund password */}
+          <div className="mb-5">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+              Fund Password
+            </p>
+            <div className="relative">
+              <input
+                type={showPwd ? "text" : "password"}
+                placeholder="Enter your fund password"
+                value={fundPwd}
+                onChange={(e) => setFundPwd(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-100 px-4 py-3.5 pr-12 rounded-[13px] text-[14px] text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#6d4c57] focus:bg-white transition-all"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPwd(!showPwd)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
+              >
+                {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+
+          {/* Notice */}
+          <div
+            className="rounded-[12px] p-3.5 mb-5 flex items-start gap-2.5"
+            style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.12)" }}
+          >
+            <AlertCircle size={14} className="shrink-0 mt-0.5 text-rose-400" />
+            <p className="text-[12px] text-gray-600 leading-snug">
+              A <span className="font-bold text-rose-500">15% service fee</span> is deducted from every withdrawal. Minimum withdrawal is 10 USDT. Processing time is 1–3 business days.
+            </p>
+          </div>
+
+          {/* Submit */}
+          <button
+            onClick={() => isValid && setSubmitted(true)}
+            className="w-full py-4 font-bold text-[15px] rounded-[14px] transition-all"
+            style={{
+              background: isValid
+                ? "linear-gradient(135deg, #6d4c57 0%, #7e5865 100%)"
+                : "#e5e7eb",
+              color:      isValid ? "white" : "#9ca3af",
+              boxShadow:  isValid ? "0 6px 20px rgba(109,76,87,0.28)" : "none",
+              cursor:     isValid ? "pointer" : "not-allowed",
+            }}
+          >
+            Confirm Withdrawal
+          </button>
         </div>
       </div>
     </div>
