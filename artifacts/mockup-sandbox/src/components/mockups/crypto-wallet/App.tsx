@@ -367,8 +367,17 @@ function MenuScreen({ onTask }: { onTask: (platform: string) => void }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // TASK DETAIL SCREEN
 // ═══════════════════════════════════════════════════════════════════════════════
-function TaskDetailScreen({ platform, onBack }: { platform: string; onBack: () => void }) {
+function TaskDetailScreen({
+  platform,
+  onBack,
+  onSubmitOrder,
+}: {
+  platform: string;
+  onBack: () => void;
+  onSubmitOrder: (platform: string, amount: string, commission: string) => void;
+}) {
   const [grabbed, setGrabbed] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const names: Record<string, string> = { amazon: "Amazon", alibaba: "Alibaba", aliexpress: "Aliexpress" };
   const rates: Record<string, string> = { amazon: "4", alibaba: "8", aliexpress: "12" };
 
@@ -421,7 +430,32 @@ function TaskDetailScreen({ platform, onBack }: { platform: string; onBack: () =
           </div>
         </div>
 
-        {!grabbed ? (
+        {submitted ? (
+          /* ── Success state ── */
+          <div style={{
+            background: C.white, borderRadius: 12, padding: "28px 20px",
+            boxShadow: "0 1px 6px rgba(0,0,0,0.07)", textAlign: "center",
+          }}>
+            <div style={{
+              width: 64, height: 64, borderRadius: "50%",
+              background: "#dcfce7",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              margin: "0 auto 14px",
+            }}>
+              <CheckCircle2 size={36} color={C.green} />
+            </div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: C.text, marginBottom: 6 }}>Order Submitted!</div>
+            <div style={{ fontSize: 13, color: C.textMid, marginBottom: 20, lineHeight: 1.5 }}>
+              Your order has been confirmed and added to<br />your Completed Orders history.
+            </div>
+            <button onClick={onBack} style={{
+              width: "100%",
+              background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
+              border: "none", borderRadius: 10, padding: "14px 0",
+              fontSize: 15, fontWeight: 700, color: "#fff", cursor: "pointer",
+            }}>Done</button>
+          </div>
+        ) : !grabbed ? (
           <button onClick={() => setGrabbed(true)} style={{
             width: "100%",
             background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
@@ -436,16 +470,25 @@ function TaskDetailScreen({ platform, onBack }: { platform: string; onBack: () =
               <span style={{ fontWeight: 600, color: C.text }}>Order grabbed!</span>
             </div>
             <div style={{ background: C.bg, borderRadius: 8, padding: "10px 12px", fontSize: 12, color: C.textMid, marginBottom: 12 }}>
-              <div style={{ marginBottom: 4 }}>Order ID: <span style={{ color: C.orange, fontWeight: 600 }}>#ORD2026{Math.floor(Math.random() * 90000 + 10000)}</span></div>
+              <div style={{ marginBottom: 4 }}>Order ID: <span style={{ color: C.orange, fontWeight: 600 }}>TR{Date.now().toString().slice(-10)}</span></div>
               <div style={{ marginBottom: 4 }}>Amount: <span style={{ color: C.text, fontWeight: 600 }}>100.00 USDT</span></div>
               <div>Commission: <span style={{ color: C.green, fontWeight: 600 }}>{rates[platform]}% = {rates[platform]}.00 USDT</span></div>
             </div>
-            <button onClick={() => setGrabbed(false)} style={{
-              width: "100%",
-              background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
-              border: "none", borderRadius: 8, padding: "12px 0",
-              fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer",
-            }}>Submit Order</button>
+            <button
+              onClick={() => {
+                const amt = "100.00";
+                const rate = parseFloat(rates[platform]);
+                const comm = (100 * rate / 100).toFixed(2);
+                onSubmitOrder(platform, amt, comm);
+                setSubmitted(true);
+              }}
+              style={{
+                width: "100%",
+                background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
+                border: "none", borderRadius: 8, padding: "12px 0",
+                fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer",
+              }}
+            >Submit Order</button>
           </div>
         )}
 
@@ -767,12 +810,18 @@ function OrderDetailsPopup({
 // ═══════════════════════════════════════════════════════════════════════════════
 // RECORD SCREEN
 // ═══════════════════════════════════════════════════════════════════════════════
-function RecordScreen() {
+function RecordScreen({
+  orders,
+  onSubmitIncomplete,
+}: {
+  orders: OrderRecord[];
+  onSubmitIncomplete: (id: string) => void;
+}) {
   const [tab, setTab] = useState<"incomplete" | "complete">("incomplete");
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
 
-  const incompleteOrders = MOCK_ORDERS.filter(o => o.status === "pending");
-  const completeOrders   = MOCK_ORDERS.filter(o => o.status === "complete");
+  const incompleteOrders = orders.filter(o => o.status === "pending");
+  const completeOrders   = orders.filter(o => o.status === "complete");
   const visible = tab === "incomplete" ? incompleteOrders : completeOrders;
 
   return (
@@ -854,12 +903,15 @@ function RecordScreen() {
             ))}
 
             {tab === "incomplete" && (
-              <div style={{
-                marginTop: 12, padding: "8px 0",
-                background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
-                border: "none", borderRadius: 8,
-                fontSize: 13, fontWeight: 600, color: "#fff", textAlign: "center",
-              }}>Submit order</div>
+              <button
+                onClick={e => { e.stopPropagation(); onSubmitIncomplete(order.id); }}
+                style={{
+                  marginTop: 12, width: "100%", padding: "10px 0",
+                  background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
+                  border: "none", borderRadius: 8,
+                  fontSize: 13, fontWeight: 600, color: "#fff", cursor: "pointer",
+                }}
+              >Submit order</button>
             )}
 
             {/* "Tap for details" hint */}
@@ -1791,11 +1843,28 @@ function BottomNav({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // ROOT APP
 // ═══════════════════════════════════════════════════════════════════════════════
+// Platform product catalogue used when building completed orders from the task screen
+const PLATFORM_PRODUCTS: Record<string, OrderProduct> = {
+  amazon:     { name: "Amazon Marketplace — Grab Order Product",     unitPrice: "100.00", qty: 1, accentColor: "#FF9900", icon: "📦" },
+  alibaba:    { name: "Alibaba Global — Grab Order Product",         unitPrice: "100.00", qty: 1, accentColor: "#FF6A00", icon: "🛍️" },
+  aliexpress: { name: "AliExpress — Grab Order Product",             unitPrice: "100.00", qty: 1, accentColor: "#e62e04", icon: "🏪" },
+};
+const PLATFORM_NAMES: Record<string, string> = {
+  amazon: "Amazon", alibaba: "Alibaba", aliexpress: "Aliexpress",
+};
+
+function nowTimestamp() {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [tab, setTab] = useState<Tab>("home");
   const [subPage, setSubPage] = useState<SubPage | null>(null);
   const [taskPlatform, setTaskPlatform] = useState("amazon");
+  const [orders, setOrders] = useState<OrderRecord[]>(MOCK_ORDERS);
 
   const goSub = (page: SubPage) => setSubPage(page);
   const goBack = () => setSubPage(null);
@@ -1803,6 +1872,31 @@ export default function App() {
   const handleTab = (t: Tab) => {
     setTab(t);
     setSubPage(null);
+  };
+
+  // Called by TaskDetailScreen when Submit Order is clicked
+  const handleAddOrder = (platform: string, amount: string, commission: string) => {
+    const product = PLATFORM_PRODUCTS[platform] ?? PLATFORM_PRODUCTS.amazon;
+    const expectedIncome = (parseFloat(amount) + parseFloat(commission)).toFixed(2);
+    const newOrder: OrderRecord = {
+      id: `TR${Date.now()}`,
+      platform: PLATFORM_NAMES[platform] ?? platform,
+      merchantColor: product.accentColor,
+      amount,
+      commission,
+      expectedIncome,
+      time: nowTimestamp(),
+      status: "complete",
+      products: [{ ...product, unitPrice: amount }],
+    };
+    setOrders(prev => [newOrder, ...prev]);
+  };
+
+  // Called by the "Submit order" button on pending cards in RecordScreen
+  const handleSubmitIncomplete = (id: string) => {
+    setOrders(prev =>
+      prev.map(o => o.id === id ? { ...o, status: "complete" as OrderStatus } : o)
+    );
   };
 
   const renderContent = () => {
@@ -1817,12 +1911,23 @@ export default function App() {
     if (subPage === "deposit-records")  return <SimpleRecordsScreen title="Deposit Records"    onBack={goBack} />;
     if (subPage === "withdraw-records") return <SimpleRecordsScreen title="Withdrawal Records" onBack={goBack} />;
     if (subPage === "setting")          return <SettingScreen    onBack={goBack} onLogout={() => setLoggedIn(false)} />;
-    if (subPage === "task")             return <TaskDetailScreen platform={taskPlatform} onBack={goBack} />;
+    if (subPage === "task")             return (
+      <TaskDetailScreen
+        platform={taskPlatform}
+        onBack={goBack}
+        onSubmitOrder={handleAddOrder}
+      />
+    );
 
     if (tab === "home")    return <HomeScreen    onNavigate={goSub} />;
     if (tab === "service") return <ServiceScreen />;
     if (tab === "menu")    return <MenuScreen    onTask={p => { setTaskPlatform(p); setSubPage("task"); }} />;
-    if (tab === "record")  return <RecordScreen />;
+    if (tab === "record")  return (
+      <RecordScreen
+        orders={orders}
+        onSubmitIncomplete={handleSubmitIncomplete}
+      />
+    );
     if (tab === "mine")    return <MineScreen    onNavigate={goSub} />;
     return null;
   };
