@@ -5,7 +5,7 @@ import {
   Users, FileText, BarChart2, Mail, ArrowDownToLine,
   ArrowUpFromLine, Lock, Eye, EyeOff, Globe, LogOut,
   MessageCircle, HelpCircle, Bell, Plus, Shield,
-  CheckCircle2, Clock, AlertCircle,
+  CheckCircle2, Clock, AlertCircle, TrendingUp,
 } from "lucide-react";
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
@@ -368,7 +368,7 @@ function MenuScreen({ onTask }: { onTask: (platform: string) => void }) {
 // TASK DETAIL SCREEN
 // ═══════════════════════════════════════════════════════════════════════════════
 function TaskDetailScreen({
-  platform,
+  platform: initialPlatform,
   onBack,
   onSubmitOrder,
 }: {
@@ -376,98 +376,171 @@ function TaskDetailScreen({
   onBack: () => void;
   onSubmitOrder: (platform: string, amount: string, commission: string) => void;
 }) {
-  const [popupOpen, setPopupOpen] = useState(false);
+  const [activePlatform, setActivePlatform] = useState(initialPlatform);
+  const [popupOpen,    setPopupOpen]    = useState(false);
   const [popupVisible, setPopupVisible] = useState(false);
 
-  const names:   Record<string, string> = { amazon: "Amazon", alibaba: "Alibaba", aliexpress: "Aliexpress" };
-  const rates:   Record<string, number> = { amazon: 4, alibaba: 8, aliexpress: 12 };
-  const icons:   Record<string, string> = { amazon: "📦", alibaba: "🛍️", aliexpress: "🏪" };
-  const accents: Record<string, string> = { amazon: "#FF9900", alibaba: "#FF6A00", aliexpress: "#e62e04" };
+  // ── Static lookup tables ──────────────────────────────────────────────────
+  const NAMES:   Record<string, string> = { amazon: "Amazon", alibaba: "Alibaba", aliexpress: "Aliexpress" };
+  const RATES:   Record<string, number> = { amazon: 4,        alibaba: 8,         aliexpress: 12 };
+  const ICONS:   Record<string, string> = { amazon: "📦",      alibaba: "🛍️",       aliexpress: "🏪" };
+  const ACCENTS: Record<string, string> = { amazon: "#FF9900", alibaba: "#FF6A00",  aliexpress: "#e62e04" };
 
-  // Sample product catalogue per platform
-  const products: Record<string, { name: string; sku: string; unitPrice: string; qty: number }[]> = {
-    amazon: [
-      { name: "Scotlite Pro Fix Adhesive Tape Roll (Heavy Duty, 50m)", sku: "AMZ-83712", unitPrice: "2.58", qty: 62 },
-    ],
-    alibaba: [
-      { name: "Wireless Bluetooth Earbuds Pro Max — Noise Cancelling", sku: "ALB-10542", unitPrice: "49.90", qty: 2 },
-    ],
-    aliexpress: [
-      { name: "Smart Fitness Watch Band Series 7 — Heart Rate Monitor",  sku: "AEX-20391", unitPrice: "34.50", qty: 3 },
-    ],
+  // ── Per-platform earnings data ────────────────────────────────────────────
+  const PLATFORM_DATA: Record<string, {
+    balance: string; todayEarnings: string; yesterdayEarnings: string;
+    todayOrders: string; cashGap: string; yesterdayBuyComm: string;
+    yesterdayTeamComm: string; frozen: string;
+  }> = {
+    amazon: {
+      balance: "1,248.60", todayEarnings: "42.80", yesterdayEarnings: "38.50",
+      todayOrders: "8", cashGap: "120.00", yesterdayBuyComm: "24.30",
+      yesterdayTeamComm: "14.20", frozen: "80.00",
+    },
+    alibaba: {
+      balance: "2,837.40", todayEarnings: "87.20", yesterdayEarnings: "76.40",
+      todayOrders: "5", cashGap: "200.00", yesterdayBuyComm: "52.80",
+      yesterdayTeamComm: "23.60", frozen: "150.00",
+    },
+    aliexpress: {
+      balance: "652.30", todayEarnings: "24.60", yesterdayEarnings: "18.90",
+      todayOrders: "3", cashGap: "80.00", yesterdayBuyComm: "12.40",
+      yesterdayTeamComm: "6.50", frozen: "40.00",
+    },
   };
 
-  const rate    = rates[platform] ?? 4;
-  const product = (products[platform] ?? products.amazon)[0];
-  const orderAmt = (parseFloat(product.unitPrice) * product.qty).toFixed(2);
+  // ── Per-platform product catalogue ────────────────────────────────────────
+  const PRODUCTS: Record<string, { name: string; sku: string; unitPrice: string; qty: number }> = {
+    amazon:     { name: "Scotlite Pro Fix Adhesive Tape Roll (Heavy Duty, 50m)",    sku: "AMZ-83712", unitPrice: "2.58",  qty: 62 },
+    alibaba:    { name: "Wireless Bluetooth Earbuds Pro Max — Noise Cancelling",    sku: "ALB-10542", unitPrice: "49.90", qty: 2  },
+    aliexpress: { name: "Smart Fitness Watch Band Series 7 — Heart Rate Monitor",   sku: "AEX-20391", unitPrice: "34.50", qty: 3  },
+  };
+
+  const p        = activePlatform;
+  const data     = PLATFORM_DATA[p] ?? PLATFORM_DATA.amazon;
+  const product  = PRODUCTS[p]      ?? PRODUCTS.amazon;
+  const rate     = RATES[p]         ?? 4;
+  const accent   = ACCENTS[p]       ?? C.orange;
+
+  const orderAmt   = (parseFloat(product.unitPrice) * product.qty).toFixed(2);
   const commission = (parseFloat(orderAmt) * rate / 100).toFixed(2);
   const expected   = (parseFloat(orderAmt) + parseFloat(commission)).toFixed(2);
   const orderId    = `TR${Date.now().toString().slice(-10)}`;
-  const accent     = accents[platform] ?? C.orange;
+  // Projected balance = current balance (strip commas) + expected income
+  const projectedBalance = (
+    parseFloat(data.balance.replace(/,/g, "")) + parseFloat(expected)
+  ).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  const openPopup = () => {
-    setPopupOpen(true);
-    setTimeout(() => setPopupVisible(true), 20);
-  };
-  const closePopup = () => {
-    setPopupVisible(false);
-    setTimeout(() => setPopupOpen(false), 280);
-  };
-  const handleSubmit = () => {
-    onSubmitOrder(platform, orderAmt, commission);
-    closePopup();
-  };
+  const openPopup = () => { setPopupOpen(true); setTimeout(() => setPopupVisible(true), 20); };
+  const closePopup = () => { setPopupVisible(false); setTimeout(() => setPopupOpen(false), 280); };
+  const handleSubmit = () => { onSubmitOrder(p, orderAmt, commission); closePopup(); };
 
   const stats = [
-    { label: "Today's Times",               value: "0"    },
-    { label: "Today's commission",           value: "0.00" },
-    { label: "Cash gap between tasks",       value: "0.00" },
-    { label: "Yesterday's buy commission",   value: "0.00" },
-    { label: "Yesterday's team commission",  value: "0.00" },
-    { label: "Money frozen in accounts",     value: "0.00" },
+    { label: "Today's Orders",            value: data.todayOrders,         highlight: false },
+    { label: "Today's Commission",        value: `${data.todayEarnings}`,  highlight: true  },
+    { label: "Cash Gap Between Tasks",    value: data.cashGap,             highlight: false },
+    { label: "Yesterday's Earnings",      value: data.yesterdayEarnings,   highlight: false },
+    { label: "Yesterday's Team Comm.",    value: data.yesterdayTeamComm,   highlight: false },
+    { label: "Frozen in Accounts",        value: data.frozen,              highlight: false },
   ];
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, position: "relative" }}>
-      {/* Orange header */}
+
+      {/* ── Orange header ── */}
       <div style={{ background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`, flexShrink: 0 }}>
         <div style={{ height: 54, display: "flex", alignItems: "center", padding: "0 16px" }}>
           <button onClick={onBack} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", padding: 4, marginRight: 8 }}>
             <ChevronLeft size={24} />
           </button>
           <span style={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: 16, color: "#fff", marginRight: 36 }}>
-            {names[platform]}
+            {NAMES[p]}
           </span>
         </div>
-        <div style={{ padding: "10px 20px 24px", textAlign: "center" }}>
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginBottom: 4 }}>Account Balance</div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: "#fff" }}>
-            0 <span style={{ fontSize: 14, fontWeight: 400 }}>USDT</span>
+
+        {/* Balance display */}
+        <div style={{ padding: "4px 20px 14px", textAlign: "center" }}>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginBottom: 2 }}>Total Account Balance</div>
+          <div style={{ fontSize: 30, fontWeight: 800, color: "#fff", letterSpacing: -0.5 }}>
+            {data.balance} <span style={{ fontSize: 13, fontWeight: 400 }}>USDT</span>
           </div>
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 4 }}>
-            Commission Rate: <strong>{rate}%</strong>
+          <div style={{ display: "flex", justifyContent: "center", gap: 20, marginTop: 6 }}>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)" }}>Today's Earnings</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>+{data.todayEarnings} USDT</div>
+            </div>
+            <div style={{ width: 1, background: "rgba(255,255,255,0.25)" }} />
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)" }}>Yesterday's Earnings</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>+{data.yesterdayEarnings} USDT</div>
+            </div>
           </div>
         </div>
+
+        {/* ── Platform switcher tabs ── */}
+        <div style={{
+          display: "flex", margin: "0 12px 0",
+          background: "rgba(0,0,0,0.18)", borderRadius: 10, padding: 3,
+        }}>
+          {(["amazon", "alibaba", "aliexpress"] as const).map(key => (
+            <button
+              key={key}
+              onClick={() => setActivePlatform(key)}
+              style={{
+                flex: 1, border: "none", cursor: "pointer",
+                borderRadius: 8, padding: "8px 4px",
+                background: activePlatform === key ? "#fff" : "transparent",
+                color: activePlatform === key ? C.orange : "rgba(255,255,255,0.8)",
+                fontWeight: activePlatform === key ? 700 : 500,
+                fontSize: 12,
+                transition: "all 200ms ease",
+              }}
+            >
+              {ICONS[key]} {NAMES[key]}
+            </button>
+          ))}
+        </div>
+        <div style={{ height: 14 }} />
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 12px 80px" }}>
-        {/* Stats grid */}
-        <div style={{ background: C.white, borderRadius: 12, marginBottom: 12, boxShadow: "0 1px 6px rgba(0,0,0,0.07)" }}>
+
+        {/* ── Earnings dashboard card ── */}
+        <div style={{
+          background: C.white, borderRadius: 12, marginBottom: 12,
+          boxShadow: "0 1px 6px rgba(0,0,0,0.07)", overflow: "hidden",
+        }}>
+          {/* Card header */}
+          <div style={{
+            padding: "10px 16px",
+            borderBottom: `1px solid ${C.border}`,
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+          }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Earnings Dashboard</span>
+            <span style={{
+              fontSize: 11, color: accent, fontWeight: 600,
+              background: `${accent}18`, padding: "2px 10px", borderRadius: 10,
+            }}>Commission {rate}%</span>
+          </div>
+
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
             {stats.map((s, i) => (
               <div key={s.label} style={{
-                padding: "14px 16px",
+                padding: "12px 16px",
                 borderBottom: i < 4 ? `1px solid ${C.border}` : "none",
                 borderRight: i % 2 === 0 ? `1px solid ${C.border}` : "none",
               }}>
-                <div style={{ fontSize: 11, color: C.textLight, marginBottom: 4 }}>{s.label}</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>{s.value}</div>
+                <div style={{ fontSize: 10, color: C.textLight, marginBottom: 3 }}>{s.label}</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: s.highlight ? C.green : C.text }}>
+                  {s.highlight ? "+" : ""}{s.value}
+                  {s.highlight || i > 0 ? <span style={{ fontSize: 10, fontWeight: 400, color: C.textMid }}> USDT</span> : ""}
+                </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Grab button */}
+        {/* ── Grab button ── */}
         <button onClick={openPopup} style={{
           width: "100%",
           background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
@@ -520,38 +593,32 @@ function TaskDetailScreen({
             </div>
 
             {/* Scrollable body */}
-            <div style={{ overflowY: "auto", padding: "0 16px 24px", maxHeight: 520 }}>
+            <div style={{ overflowY: "auto", padding: "0 16px 24px", maxHeight: 540 }}>
 
               {/* Product image */}
               <div style={{
                 borderRadius: 14, overflow: "hidden",
-                background: `${accent}12`,
-                border: `1.5px solid ${accent}30`,
+                background: `${accent}12`, border: `1.5px solid ${accent}30`,
                 marginBottom: 14,
               }}>
-                <div style={{
-                  height: 150,
-                  display: "flex", flexDirection: "column",
-                  alignItems: "center", justifyContent: "center", gap: 8,
-                }}>
-                  <span style={{ fontSize: 60, lineHeight: 1 }}>{icons[platform]}</span>
-                  <span style={{
-                    fontSize: 11, color: accent, fontWeight: 600,
-                    background: `${accent}20`, padding: "3px 12px", borderRadius: 12,
-                  }}>{names[platform]}</span>
+                <div style={{ height: 130, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <span style={{ fontSize: 54, lineHeight: 1 }}>{ICONS[p]}</span>
+                  <span style={{ fontSize: 11, color: accent, fontWeight: 600, background: `${accent}20`, padding: "3px 12px", borderRadius: 12 }}>
+                    {NAMES[p]}
+                  </span>
                 </div>
               </div>
 
               {/* Product info */}
-              <div style={{ background: C.bg, borderRadius: 12, padding: "12px 14px", marginBottom: 14 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: C.text, lineHeight: 1.4, marginBottom: 6 }}>
+              <div style={{ background: C.bg, borderRadius: 12, padding: "12px 14px", marginBottom: 12 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: C.text, lineHeight: 1.4, marginBottom: 4 }}>
                   {product.name}
                 </div>
-                <div style={{ fontSize: 12, color: C.textLight, fontFamily: "monospace" }}>SKU: {product.sku}</div>
+                <div style={{ fontSize: 11, color: C.textLight, fontFamily: "monospace" }}>SKU: {product.sku}</div>
               </div>
 
-              {/* Stats row */}
-              <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+              {/* Price / qty / subtotal row */}
+              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                 {[
                   { label: "Unit Price", val: `${product.unitPrice} USDT`, color: C.orange },
                   { label: "Quantity",   val: `×${product.qty}`,           color: C.text   },
@@ -562,46 +629,63 @@ function TaskDetailScreen({
                     padding: "8px 6px", textAlign: "center",
                     border: `1px solid ${C.border}`,
                   }}>
-                    <div style={{ fontSize: 10, color: C.textLight, marginBottom: 4 }}>{s.label}</div>
+                    <div style={{ fontSize: 10, color: C.textLight, marginBottom: 3 }}>{s.label}</div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: s.color }}>{s.val}</div>
                   </div>
                 ))}
               </div>
 
               {/* Commission summary */}
-              <div style={{
-                background: C.white, borderRadius: 12,
-                border: `1px solid ${C.border}`,
-                overflow: "hidden", marginBottom: 16,
-              }}>
-                <div style={{
-                  padding: "10px 14px",
-                  background: `${C.orange}0e`,
-                  borderBottom: `1px solid ${C.border}`,
-                }}>
+              <div style={{ background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden", marginBottom: 12 }}>
+                <div style={{ padding: "10px 14px", background: `${C.orange}0e`, borderBottom: `1px solid ${C.border}` }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Commission Summary</span>
                 </div>
                 {[
-                  { label: "Order ID",        val: orderId,               mono: true              },
-                  { label: "Order amount",     val: `${orderAmt} USDT`,   color: C.text           },
-                  { label: "Commission rate",  val: `${rate}%`,            color: C.orange         },
-                  { label: "Commission",       val: `+${commission} USDT`, color: C.green          },
-                  { label: "Expected income",  val: `${expected} USDT`,    color: C.orange, bold: true },
+                  { label: "Order ID",       val: orderId,               mono: true                   },
+                  { label: "Order amount",   val: `${orderAmt} USDT`,   color: C.text                },
+                  { label: "Comm. rate",     val: `${rate}%`,            color: C.orange              },
+                  { label: "Commission",     val: `+${commission} USDT`, color: C.green               },
+                  { label: "Expected income",val: `${expected} USDT`,    color: C.orange, bold: true  },
                 ].map((row, i, arr) => (
                   <div key={row.label} style={{
                     display: "flex", alignItems: "center", justifyContent: "space-between",
-                    padding: "11px 14px",
+                    padding: "10px 14px",
                     borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : "none",
                   }}>
                     <span style={{ fontSize: 13, color: C.textMid }}>{row.label}</span>
                     <span style={{
-                      fontSize: 13,
-                      fontWeight: row.bold ? 700 : 500,
+                      fontSize: 13, fontWeight: row.bold ? 700 : 500,
                       color: row.color ?? C.text,
                       fontFamily: row.mono ? "monospace" : "inherit",
                     }}>{row.val}</span>
                   </div>
                 ))}
+              </div>
+
+              {/* ── Projected Account Balance ── */}
+              <div style={{
+                background: `linear-gradient(135deg, ${C.wine}0f 0%, ${C.wineDark}08 100%)`,
+                border: `1.5px solid ${C.wine}30`,
+                borderRadius: 12, padding: "14px 16px", marginBottom: 16,
+              }}>
+                <div style={{ fontSize: 12, color: C.wine, fontWeight: 700, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                  <TrendingUp size={14} />
+                  Projected Account Balance After Completion
+                </div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontSize: 22, fontWeight: 800, color: C.text }}>{projectedBalance}</span>
+                  <span style={{ fontSize: 12, color: C.textMid }}>USDT</span>
+                </div>
+                <div style={{ display: "flex", gap: 16, fontSize: 11 }}>
+                  <div>
+                    <span style={{ color: C.textLight }}>Current balance  </span>
+                    <span style={{ color: C.text, fontWeight: 600 }}>{data.balance} USDT</span>
+                  </div>
+                  <div>
+                    <span style={{ color: C.textLight }}>+ Income  </span>
+                    <span style={{ color: C.green, fontWeight: 600 }}>+{expected} USDT</span>
+                  </div>
+                </div>
               </div>
 
               {/* Submit button */}
