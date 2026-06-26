@@ -458,14 +458,322 @@ function TaskDetailScreen({ platform, onBack }: { platform: string; onBack: () =
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// ORDER DETAILS POPUP
+// ═══════════════════════════════════════════════════════════════════════════════
+type OrderStatus = "pending" | "complete";
+
+interface OrderProduct {
+  name: string;
+  unitPrice: string;
+  qty: number;
+  accentColor: string;
+  icon: string;
+}
+
+interface OrderRecord {
+  id: string;
+  platform: string;
+  merchantColor: string;
+  amount: string;
+  commission: string;
+  expectedIncome: string;
+  time: string;
+  status: OrderStatus;
+  products: OrderProduct[];
+}
+
+const MOCK_ORDERS: OrderRecord[] = [
+  {
+    id: "TR2502121252212055",
+    platform: "Amazon",
+    merchantColor: "#FF9900",
+    amount: "159.96",
+    commission: "12.80",
+    expectedIncome: "172.76",
+    time: "2026-06-09 14:23:11",
+    status: "pending",
+    products: [
+      { name: "Scotlite Scotlet Profix DC Fix Good Fix Adhesive Tape Roll", unitPrice: "2.58", qty: 62, accentColor: "#3b82f6", icon: "📦" },
+    ],
+  },
+  {
+    id: "TR2502121183647012",
+    platform: "Alibaba",
+    merchantColor: "#FF6A00",
+    amount: "499.00",
+    commission: "39.92",
+    expectedIncome: "538.92",
+    time: "2026-06-08 10:05:44",
+    status: "complete",
+    products: [
+      { name: "Premium Wireless Bluetooth Earbuds Pro Max Noise Cancelling", unitPrice: "49.90", qty: 10, accentColor: "#8b5cf6", icon: "🎧" },
+      { name: "USB-C Fast Charging Cable 2m Braided Nylon", unitPrice: "0.10", qty: 0, accentColor: "#22c55e", icon: "🔌" },
+    ],
+  },
+];
+
+// Pill indicator + close helpers
+function Pill() {
+  return (
+    <div style={{
+      width: 40, height: 4, borderRadius: 2,
+      background: "#d1d5db", margin: "0 auto 16px",
+    }} />
+  );
+}
+
+function StatusChip({ status }: { status: OrderStatus }) {
+  const isPending = status === "pending";
+  return (
+    <span style={{
+      background: isPending ? "#fef3e2" : "#dcfce7",
+      color: isPending ? C.orange : C.green,
+      fontSize: 11, fontWeight: 700,
+      padding: "3px 10px", borderRadius: 20,
+      display: "inline-flex", alignItems: "center", gap: 4,
+    }}>
+      {isPending ? <Clock size={10} /> : <CheckCircle2 size={10} />}
+      {isPending ? "Pending" : "Completed"}
+    </span>
+  );
+}
+
+function OrderDetailsPopup({
+  order,
+  onClose,
+}: {
+  order: OrderRecord;
+  onClose: () => void;
+}) {
+  const [visible, setVisible] = useState(false);
+  const [imgIdx, setImgIdx] = useState(0);
+
+  // Trigger slide-in on mount
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), 20);
+    return () => clearTimeout(t);
+  }, []);
+
+  const handleClose = () => {
+    setVisible(false);
+    setTimeout(onClose, 280);
+  };
+
+  const rows = [
+    { label: "Order No.",        val: order.id,                         mono: true  },
+    { label: "Merchant",         val: order.platform,                   bold: true  },
+    { label: "Order amount",     val: `${order.amount} USDT`,           orange: true },
+    { label: "Commission",       val: `+${order.commission} USDT`,      green: true  },
+    { label: "Expected income",  val: `${order.expectedIncome} USDT`,   orange: true },
+    { label: "Date & time",      val: order.time                                     },
+    { label: "Status",           val: order.status,                     chip: true   },
+  ];
+
+  const product = order.products[imgIdx] ?? order.products[0];
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={handleClose}
+        style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+          zIndex: 200,
+          opacity: visible ? 1 : 0,
+          transition: "opacity 280ms ease",
+        }}
+      />
+
+      {/* Sheet */}
+      <div style={{
+        position: "fixed", left: 0, right: 0, bottom: 0,
+        zIndex: 201,
+        background: C.white,
+        borderRadius: "20px 20px 0 0",
+        maxHeight: "88%",
+        display: "flex", flexDirection: "column",
+        transform: visible ? "translateY(0)" : "translateY(100%)",
+        transition: "transform 280ms cubic-bezier(0.32,0.72,0,1)",
+        boxShadow: "0 -4px 32px rgba(0,0,0,0.18)",
+        overflow: "hidden",
+      }}>
+        {/* Drag handle + header */}
+        <div style={{ padding: "12px 20px 0", flexShrink: 0 }}>
+          <Pill />
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            marginBottom: 14,
+          }}>
+            <span style={{ fontSize: 17, fontWeight: 700, color: C.text }}>Order Details</span>
+            <button
+              onClick={handleClose}
+              style={{
+                border: "none", background: "#f4f5f7", cursor: "pointer",
+                width: 30, height: 30, borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >
+              <X size={16} color={C.textMid} />
+            </button>
+          </div>
+        </div>
+
+        {/* Scrollable body */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "0 16px 24px" }}>
+
+          {/* ── Product image / gallery ── */}
+          <div style={{
+            borderRadius: 14, overflow: "hidden",
+            background: `linear-gradient(135deg, ${product.accentColor}22 0%, ${product.accentColor}11 100%)`,
+            border: `1.5px solid ${product.accentColor}33`,
+            marginBottom: 12,
+          }}>
+            {/* Main image area */}
+            <div style={{
+              height: 180,
+              display: "flex", flexDirection: "column",
+              alignItems: "center", justifyContent: "center", gap: 8,
+              background: `linear-gradient(135deg, ${product.accentColor}18 0%, ${product.accentColor}08 100%)`,
+            }}>
+              <span style={{ fontSize: 64, lineHeight: 1 }}>{product.icon}</span>
+              <span style={{
+                fontSize: 11, color: product.accentColor, fontWeight: 600,
+                background: `${product.accentColor}22`,
+                padding: "3px 10px", borderRadius: 12,
+              }}>
+                {order.platform}
+              </span>
+            </div>
+
+            {/* Gallery dots / thumbnails (when multiple products) */}
+            {order.products.length > 1 && (
+              <div style={{
+                display: "flex", gap: 8, padding: "10px 12px",
+                background: "rgba(255,255,255,0.7)", borderTop: `1px solid ${C.border}`,
+              }}>
+                {order.products.map((p, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setImgIdx(i)}
+                    style={{
+                      width: 44, height: 44, borderRadius: 8, flexShrink: 0,
+                      border: `2px solid ${i === imgIdx ? product.accentColor : C.border}`,
+                      background: `${p.accentColor}18`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 22, cursor: "pointer",
+                    }}
+                  >
+                    {p.icon}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── Product info ── */}
+          <div style={{
+            background: C.bg, borderRadius: 12,
+            padding: "12px 14px", marginBottom: 12,
+          }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: C.text, lineHeight: 1.4, marginBottom: 10 }}>
+              {product.name}
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <div style={{
+                flex: 1, background: C.white, borderRadius: 8,
+                padding: "8px 10px", textAlign: "center",
+                border: `1px solid ${C.border}`,
+              }}>
+                <div style={{ fontSize: 10, color: C.textLight, marginBottom: 3 }}>Unit Price</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: C.orange }}>{product.unitPrice} <span style={{ fontSize: 10, fontWeight: 400 }}>USDT</span></div>
+              </div>
+              <div style={{
+                flex: 1, background: C.white, borderRadius: 8,
+                padding: "8px 10px", textAlign: "center",
+                border: `1px solid ${C.border}`,
+              }}>
+                <div style={{ fontSize: 10, color: C.textLight, marginBottom: 3 }}>Quantity</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>×{product.qty}</div>
+              </div>
+              <div style={{
+                flex: 1, background: C.white, borderRadius: 8,
+                padding: "8px 10px", textAlign: "center",
+                border: `1px solid ${C.border}`,
+              }}>
+                <div style={{ fontSize: 10, color: C.textLight, marginBottom: 3 }}>Subtotal</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: C.green }}>
+                  {(parseFloat(product.unitPrice) * product.qty).toFixed(2)} <span style={{ fontSize: 10, fontWeight: 400 }}>USDT</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Summary section ── */}
+          <div style={{
+            background: C.white, borderRadius: 12,
+            border: `1px solid ${C.border}`,
+            overflow: "hidden", marginBottom: 16,
+          }}>
+            <div style={{
+              padding: "10px 14px",
+              background: `linear-gradient(135deg, ${C.wine}08 0%, ${C.wine}04 100%)`,
+              borderBottom: `1px solid ${C.border}`,
+            }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Order Summary</span>
+            </div>
+            {rows.map((row, i) => (
+              <div key={row.label} style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "11px 14px",
+                borderBottom: i < rows.length - 1 ? `1px solid ${C.border}` : "none",
+              }}>
+                <span style={{ fontSize: 13, color: C.textMid, flexShrink: 0 }}>{row.label}</span>
+                {row.chip ? (
+                  <StatusChip status={row.val as OrderStatus} />
+                ) : (
+                  <span style={{
+                    fontSize: 13,
+                    fontWeight: row.bold || row.orange || row.green ? 700 : 400,
+                    color: row.orange ? C.orange : row.green ? C.green : row.mono ? C.text : C.text,
+                    fontFamily: row.mono ? "monospace" : "inherit",
+                    maxWidth: "60%", textAlign: "right", wordBreak: "break-all",
+                  }}>
+                    {row.val}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* ── Close button ── */}
+          <button
+            onClick={handleClose}
+            style={{
+              width: "100%",
+              background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
+              border: "none", borderRadius: 12, padding: "15px 0",
+              fontSize: 15, fontWeight: 700, color: "#fff", cursor: "pointer",
+              boxShadow: `0 4px 16px rgba(245,161,0,0.35)`,
+            }}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // RECORD SCREEN
 // ═══════════════════════════════════════════════════════════════════════════════
 function RecordScreen() {
   const [tab, setTab] = useState<"incomplete" | "complete">("incomplete");
+  const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
 
-  const orders = [
-    { id: "ORD20261204", platform: "Amazon", amount: "100.00", commission: "4.00", time: "2026-06-09 14:23" },
-  ];
+  const incompleteOrders = MOCK_ORDERS.filter(o => o.status === "pending");
+  const completeOrders   = MOCK_ORDERS.filter(o => o.status === "complete");
+  const visible = tab === "incomplete" ? incompleteOrders : completeOrders;
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, paddingBottom: 80 }}>
@@ -488,44 +796,92 @@ function RecordScreen() {
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 12px" }}>
-        {tab === "incomplete" && orders.map(order => (
-          <div key={order.id} style={{
-            background: C.white, borderRadius: 12, padding: 16,
-            boxShadow: "0 1px 6px rgba(0,0,0,0.07)", marginBottom: 10,
-          }}>
+        {visible.length > 0 ? visible.map(order => (
+          <button
+            key={order.id}
+            onClick={() => setSelectedOrder(order)}
+            style={{
+              width: "100%", background: C.white, border: "none", borderRadius: 12, padding: 16,
+              boxShadow: "0 1px 6px rgba(0,0,0,0.07)", marginBottom: 10, cursor: "pointer",
+              textAlign: "left",
+            }}
+          >
+            {/* Top row: time + status */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <span style={{ fontSize: 12, color: C.textLight }}>{order.time}</span>
-              <span style={{ background: "#fef3e2", color: C.orange, fontSize: 11, padding: "2px 8px", borderRadius: 10, fontWeight: 600 }}>
-                Pending
-              </span>
+              <StatusChip status={order.status} />
             </div>
+
+            {/* Product preview row */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: 8, flexShrink: 0,
+                background: `${order.products[0].accentColor}18`,
+                border: `1px solid ${order.products[0].accentColor}33`,
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24,
+              }}>
+                {order.products[0].icon}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 2,
+                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {order.products[0].name}
+                </div>
+                <div style={{ fontSize: 11, color: C.textLight }}>
+                  {order.products[0].unitPrice} USDT × {order.products[0].qty}
+                  {order.products.length > 1 && ` (+${order.products.length - 1} more)`}
+                </div>
+              </div>
+            </div>
+
+            {/* Data rows */}
             {[
-              { label: "Order ID",    val: order.id },
-              { label: "Platform",    val: order.platform },
-              { label: "Amount",      val: `${order.amount} USDT` },
-              { label: "Commission",  val: `+${order.commission} USDT`, green: true },
+              { label: "Order ID",   val: order.id,                              mono: true  },
+              { label: "Platform",   val: order.platform                                     },
+              { label: "Amount",     val: `${order.amount} USDT`                            },
+              { label: "Commission", val: `+${order.commission} USDT`, green: true           },
             ].map(row => (
-              <div key={row.label} style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+              <div key={row.label} style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
                 <span style={{ fontSize: 13, color: C.textMid }}>{row.label}</span>
-                <span style={{ fontSize: 13, color: row.green ? C.green : C.text, fontWeight: row.green ? 600 : 400 }}>{row.val}</span>
+                <span style={{
+                  fontSize: 13,
+                  color: row.green ? C.green : C.text,
+                  fontWeight: row.green ? 600 : 400,
+                  fontFamily: row.mono ? "monospace" : "inherit",
+                  maxWidth: "60%", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis",
+                }}>{row.val}</span>
               </div>
             ))}
-            <button style={{
-              width: "100%", marginTop: 10,
-              background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
-              border: "none", borderRadius: 8, padding: "11px 0",
-              fontSize: 14, fontWeight: 600, color: "#fff", cursor: "pointer",
-            }}>Submit order</button>
-          </div>
-        ))}
 
-        {(tab === "complete" || (tab === "incomplete" && orders.length === 0)) && (
+            {tab === "incomplete" && (
+              <div style={{
+                marginTop: 12, padding: "8px 0",
+                background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
+                border: "none", borderRadius: 8,
+                fontSize: 13, fontWeight: 600, color: "#fff", textAlign: "center",
+              }}>Submit order</div>
+            )}
+
+            {/* "Tap for details" hint */}
+            <div style={{ marginTop: 8, textAlign: "center", fontSize: 11, color: C.textLight }}>
+              Tap to view details
+            </div>
+          </button>
+        )) : (
           <div style={{ textAlign: "center", padding: "40px 20px", color: C.textLight }}>
             <ClipboardList size={48} color={C.border} style={{ marginBottom: 12 }} />
             <div style={{ fontSize: 14 }}>No more</div>
           </div>
         )}
       </div>
+
+      {/* Order Details Popup */}
+      {selectedOrder && (
+        <OrderDetailsPopup
+          order={selectedOrder}
+          onClose={() => setSelectedOrder(null)}
+        />
+      )}
     </div>
   );
 }
