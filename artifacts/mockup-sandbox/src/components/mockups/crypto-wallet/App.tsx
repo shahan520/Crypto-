@@ -376,10 +376,47 @@ function TaskDetailScreen({
   onBack: () => void;
   onSubmitOrder: (platform: string, amount: string, commission: string) => void;
 }) {
-  const [grabbed, setGrabbed] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const names: Record<string, string> = { amazon: "Amazon", alibaba: "Alibaba", aliexpress: "Aliexpress" };
-  const rates: Record<string, string> = { amazon: "4", alibaba: "8", aliexpress: "12" };
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [popupVisible, setPopupVisible] = useState(false);
+
+  const names:   Record<string, string> = { amazon: "Amazon", alibaba: "Alibaba", aliexpress: "Aliexpress" };
+  const rates:   Record<string, number> = { amazon: 4, alibaba: 8, aliexpress: 12 };
+  const icons:   Record<string, string> = { amazon: "📦", alibaba: "🛍️", aliexpress: "🏪" };
+  const accents: Record<string, string> = { amazon: "#FF9900", alibaba: "#FF6A00", aliexpress: "#e62e04" };
+
+  // Sample product catalogue per platform
+  const products: Record<string, { name: string; sku: string; unitPrice: string; qty: number }[]> = {
+    amazon: [
+      { name: "Scotlite Pro Fix Adhesive Tape Roll (Heavy Duty, 50m)", sku: "AMZ-83712", unitPrice: "2.58", qty: 62 },
+    ],
+    alibaba: [
+      { name: "Wireless Bluetooth Earbuds Pro Max — Noise Cancelling", sku: "ALB-10542", unitPrice: "49.90", qty: 2 },
+    ],
+    aliexpress: [
+      { name: "Smart Fitness Watch Band Series 7 — Heart Rate Monitor",  sku: "AEX-20391", unitPrice: "34.50", qty: 3 },
+    ],
+  };
+
+  const rate    = rates[platform] ?? 4;
+  const product = (products[platform] ?? products.amazon)[0];
+  const orderAmt = (parseFloat(product.unitPrice) * product.qty).toFixed(2);
+  const commission = (parseFloat(orderAmt) * rate / 100).toFixed(2);
+  const expected   = (parseFloat(orderAmt) + parseFloat(commission)).toFixed(2);
+  const orderId    = `TR${Date.now().toString().slice(-10)}`;
+  const accent     = accents[platform] ?? C.orange;
+
+  const openPopup = () => {
+    setPopupOpen(true);
+    setTimeout(() => setPopupVisible(true), 20);
+  };
+  const closePopup = () => {
+    setPopupVisible(false);
+    setTimeout(() => setPopupOpen(false), 280);
+  };
+  const handleSubmit = () => {
+    onSubmitOrder(platform, orderAmt, commission);
+    closePopup();
+  };
 
   const stats = [
     { label: "Today's Times",               value: "0"    },
@@ -391,7 +428,7 @@ function TaskDetailScreen({
   ];
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, position: "relative" }}>
       {/* Orange header */}
       <div style={{ background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`, flexShrink: 0 }}>
         <div style={{ height: 54, display: "flex", alignItems: "center", padding: "0 16px" }}>
@@ -408,7 +445,7 @@ function TaskDetailScreen({
             0 <span style={{ fontSize: 14, fontWeight: 400 }}>USDT</span>
           </div>
           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 4 }}>
-            Commission Rate: <strong>{rates[platform]}%</strong>
+            Commission Rate: <strong>{rate}%</strong>
           </div>
         </div>
       </div>
@@ -430,72 +467,155 @@ function TaskDetailScreen({
           </div>
         </div>
 
-        {submitted ? (
-          /* ── Success state ── */
-          <div style={{
-            background: C.white, borderRadius: 12, padding: "28px 20px",
-            boxShadow: "0 1px 6px rgba(0,0,0,0.07)", textAlign: "center",
-          }}>
-            <div style={{
-              width: 64, height: 64, borderRadius: "50%",
-              background: "#dcfce7",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              margin: "0 auto 14px",
-            }}>
-              <CheckCircle2 size={36} color={C.green} />
-            </div>
-            <div style={{ fontSize: 17, fontWeight: 700, color: C.text, marginBottom: 6 }}>Order Submitted!</div>
-            <div style={{ fontSize: 13, color: C.textMid, marginBottom: 20, lineHeight: 1.5 }}>
-              Your order has been confirmed and added to<br />your Completed Orders history.
-            </div>
-            <button onClick={onBack} style={{
-              width: "100%",
-              background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
-              border: "none", borderRadius: 10, padding: "14px 0",
-              fontSize: 15, fontWeight: 700, color: "#fff", cursor: "pointer",
-            }}>Done</button>
-          </div>
-        ) : !grabbed ? (
-          <button onClick={() => setGrabbed(true)} style={{
-            width: "100%",
-            background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
-            border: "none", borderRadius: 10, padding: "16px 0",
-            fontSize: 16, fontWeight: 700, color: "#fff", cursor: "pointer",
-            boxShadow: `0 4px 16px rgba(245,161,0,0.4)`,
-          }}>Grab the order immediately</button>
-        ) : (
-          <div style={{ background: C.white, borderRadius: 10, padding: 16, boxShadow: "0 1px 6px rgba(0,0,0,0.07)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-              <CheckCircle2 size={20} color={C.green} />
-              <span style={{ fontWeight: 600, color: C.text }}>Order grabbed!</span>
-            </div>
-            <div style={{ background: C.bg, borderRadius: 8, padding: "10px 12px", fontSize: 12, color: C.textMid, marginBottom: 12 }}>
-              <div style={{ marginBottom: 4 }}>Order ID: <span style={{ color: C.orange, fontWeight: 600 }}>TR{Date.now().toString().slice(-10)}</span></div>
-              <div style={{ marginBottom: 4 }}>Amount: <span style={{ color: C.text, fontWeight: 600 }}>100.00 USDT</span></div>
-              <div>Commission: <span style={{ color: C.green, fontWeight: 600 }}>{rates[platform]}% = {rates[platform]}.00 USDT</span></div>
-            </div>
-            <button
-              onClick={() => {
-                const amt = "100.00";
-                const rate = parseFloat(rates[platform]);
-                const comm = (100 * rate / 100).toFixed(2);
-                onSubmitOrder(platform, amt, comm);
-                setSubmitted(true);
-              }}
-              style={{
-                width: "100%",
-                background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
-                border: "none", borderRadius: 8, padding: "12px 0",
-                fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer",
-              }}
-            >Submit Order</button>
-          </div>
-        )}
+        {/* Grab button */}
+        <button onClick={openPopup} style={{
+          width: "100%",
+          background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
+          border: "none", borderRadius: 10, padding: "16px 0",
+          fontSize: 16, fontWeight: 700, color: "#fff", cursor: "pointer",
+          boxShadow: `0 4px 16px rgba(245,161,0,0.4)`,
+        }}>Grab the order immediately</button>
 
         <div style={{ fontSize: 12, color: C.textLight, textAlign: "center", marginTop: 12 }}>
           Hint: Ensure your account balance meets the minimum requirement before grabbing orders.
         </div>
       </div>
+
+      {/* ── Grab Order Popup ── */}
+      {popupOpen && (
+        <>
+          {/* Backdrop */}
+          <div onClick={closePopup} style={{
+            position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)",
+            zIndex: 200,
+            opacity: popupVisible ? 1 : 0,
+            transition: "opacity 280ms ease",
+          }} />
+
+          {/* Sheet */}
+          <div style={{
+            position: "absolute", left: 0, right: 0, bottom: 0,
+            zIndex: 201,
+            background: C.white,
+            borderRadius: "20px 20px 0 0",
+            display: "flex", flexDirection: "column",
+            transform: popupVisible ? "translateY(0)" : "translateY(100%)",
+            transition: "transform 280ms cubic-bezier(0.32,0.72,0,1)",
+            boxShadow: "0 -4px 32px rgba(0,0,0,0.18)",
+            overflow: "hidden",
+          }}>
+            {/* Handle + header */}
+            <div style={{ padding: "12px 20px 0", flexShrink: 0 }}>
+              <div style={{ width: 40, height: 4, borderRadius: 2, background: "#d1d5db", margin: "0 auto 14px" }} />
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                <span style={{ fontSize: 17, fontWeight: 700, color: C.text }}>Order Details</span>
+                <button onClick={closePopup} style={{
+                  border: "none", background: "#f4f5f7", cursor: "pointer",
+                  width: 30, height: 30, borderRadius: "50%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <X size={16} color={C.textMid} />
+                </button>
+              </div>
+            </div>
+
+            {/* Scrollable body */}
+            <div style={{ overflowY: "auto", padding: "0 16px 24px", maxHeight: 520 }}>
+
+              {/* Product image */}
+              <div style={{
+                borderRadius: 14, overflow: "hidden",
+                background: `${accent}12`,
+                border: `1.5px solid ${accent}30`,
+                marginBottom: 14,
+              }}>
+                <div style={{
+                  height: 150,
+                  display: "flex", flexDirection: "column",
+                  alignItems: "center", justifyContent: "center", gap: 8,
+                }}>
+                  <span style={{ fontSize: 60, lineHeight: 1 }}>{icons[platform]}</span>
+                  <span style={{
+                    fontSize: 11, color: accent, fontWeight: 600,
+                    background: `${accent}20`, padding: "3px 12px", borderRadius: 12,
+                  }}>{names[platform]}</span>
+                </div>
+              </div>
+
+              {/* Product info */}
+              <div style={{ background: C.bg, borderRadius: 12, padding: "12px 14px", marginBottom: 14 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: C.text, lineHeight: 1.4, marginBottom: 6 }}>
+                  {product.name}
+                </div>
+                <div style={{ fontSize: 12, color: C.textLight, fontFamily: "monospace" }}>SKU: {product.sku}</div>
+              </div>
+
+              {/* Stats row */}
+              <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+                {[
+                  { label: "Unit Price", val: `${product.unitPrice} USDT`, color: C.orange },
+                  { label: "Quantity",   val: `×${product.qty}`,           color: C.text   },
+                  { label: "Subtotal",   val: `${orderAmt} USDT`,          color: C.green  },
+                ].map(s => (
+                  <div key={s.label} style={{
+                    flex: 1, background: C.white, borderRadius: 8,
+                    padding: "8px 6px", textAlign: "center",
+                    border: `1px solid ${C.border}`,
+                  }}>
+                    <div style={{ fontSize: 10, color: C.textLight, marginBottom: 4 }}>{s.label}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: s.color }}>{s.val}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Commission summary */}
+              <div style={{
+                background: C.white, borderRadius: 12,
+                border: `1px solid ${C.border}`,
+                overflow: "hidden", marginBottom: 16,
+              }}>
+                <div style={{
+                  padding: "10px 14px",
+                  background: `${C.orange}0e`,
+                  borderBottom: `1px solid ${C.border}`,
+                }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Commission Summary</span>
+                </div>
+                {[
+                  { label: "Order ID",        val: orderId,               mono: true              },
+                  { label: "Order amount",     val: `${orderAmt} USDT`,   color: C.text           },
+                  { label: "Commission rate",  val: `${rate}%`,            color: C.orange         },
+                  { label: "Commission",       val: `+${commission} USDT`, color: C.green          },
+                  { label: "Expected income",  val: `${expected} USDT`,    color: C.orange, bold: true },
+                ].map((row, i, arr) => (
+                  <div key={row.label} style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "11px 14px",
+                    borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : "none",
+                  }}>
+                    <span style={{ fontSize: 13, color: C.textMid }}>{row.label}</span>
+                    <span style={{
+                      fontSize: 13,
+                      fontWeight: row.bold ? 700 : 500,
+                      color: row.color ?? C.text,
+                      fontFamily: row.mono ? "monospace" : "inherit",
+                    }}>{row.val}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Submit button */}
+              <button onClick={handleSubmit} style={{
+                width: "100%",
+                background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
+                border: "none", borderRadius: 12, padding: "15px 0",
+                fontSize: 15, fontWeight: 700, color: "#fff", cursor: "pointer",
+                boxShadow: `0 4px 16px rgba(245,161,0,0.35)`,
+              }}>Submit Order</button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
