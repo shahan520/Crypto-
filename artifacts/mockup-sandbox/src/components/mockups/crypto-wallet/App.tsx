@@ -1924,7 +1924,7 @@ function SettingScreen({ onBack, onLogout }: { onBack: () => void; onLogout: () 
 // ═══════════════════════════════════════════════════════════════════════════════
 // LOGIN SCREEN
 // ═══════════════════════════════════════════════════════════════════════════════
-function LoginScreen({ onLogin }: { onLogin: () => void }) {
+function LoginScreen({ onLogin, onRegister }: { onLogin: () => void; onRegister: () => void }) {
   const [user, setUser] = useState("");
   const [pwd, setPwd] = useState("");
   const [showPwd, setShowPwd] = useState(false);
@@ -2000,9 +2000,264 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
         <div style={{ textAlign: "center", fontSize: 13, color: C.textMid }}>
           Don't have an account?{" "}
-          <span style={{ color: C.orange, fontWeight: 600, cursor: "pointer" }}>Register</span>
+          <span onClick={onRegister} style={{ color: C.orange, fontWeight: 600, cursor: "pointer" }}>Register</span>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// REGISTER SCREEN  (3-step flow)
+// ═══════════════════════════════════════════════════════════════════════════════
+function RegisterScreen({ onDone, onBack }: { onDone: () => void; onBack: () => void }) {
+  const [step, setStep] = useState(1);
+
+  // Step 1 fields
+  const [phone,    setPhone]    = useState("");
+  const [username, setUsername] = useState("");
+  const [pwd,      setPwd]      = useState("");
+  const [confirm,  setConfirm]  = useState("");
+  const [showPwd,  setShowPwd]  = useState(false);
+  const [showConf, setShowConf] = useState(false);
+
+  // Step 2 fields
+  const [inviteCode, setInviteCode] = useState("");
+
+  // Step 1 validation
+  const step1Valid = phone.trim().length >= 7 && username.trim().length >= 3 && pwd.length >= 6 && pwd === confirm;
+  const pwdMismatch = confirm.length > 0 && pwd !== confirm;
+
+  // ── Step indicator ────────────────────────────────────────────────────────
+  const StepDots = () => (
+    <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 24 }}>
+      {[1, 2].map(n => (
+        <div key={n} style={{
+          width: n === step ? 28 : 8, height: 8, borderRadius: 4,
+          background: n <= step ? C.orange : C.border,
+          transition: "all 300ms ease",
+        }} />
+      ))}
+    </div>
+  );
+
+  // ── Reusable input row ────────────────────────────────────────────────────
+  const Field = ({
+    label, value, set, placeholder, icon, type = "text", suffix, error,
+  }: {
+    label: string; value: string; set: (v: string) => void;
+    placeholder: string; icon: React.ReactNode;
+    type?: string; suffix?: React.ReactNode; error?: string;
+  }) => (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ fontSize: 12, color: C.textLight, marginBottom: 6 }}>{label}</div>
+      <div style={{
+        display: "flex", alignItems: "center", gap: 8,
+        border: `1.5px solid ${error ? C.red : C.border}`, borderRadius: 10, padding: "11px 14px",
+      }}>
+        {icon}
+        <input
+          value={value} onChange={e => set(e.target.value)}
+          placeholder={placeholder} type={type}
+          style={{ flex: 1, border: "none", outline: "none", fontSize: 14, color: C.text, background: "transparent" }}
+        />
+        {suffix}
+      </div>
+      {error && <div style={{ fontSize: 11, color: C.red, marginTop: 4 }}>{error}</div>}
+    </div>
+  );
+
+  // ── Shared header ─────────────────────────────────────────────────────────
+  const Header = ({ title, sub }: { title: string; sub: string }) => (
+    <div style={{
+      background: `linear-gradient(160deg, ${C.wine} 0%, ${C.wineDark} 55%, ${C.bg} 100%)`,
+      padding: "36px 24px 56px", textAlign: "center",
+    }}>
+      <button onClick={step === 1 ? onBack : () => setStep(s => s - 1)} style={{
+        position: "absolute", top: 36, left: 14,
+        background: "rgba(255,255,255,0.15)", border: "none",
+        width: 36, height: 36, borderRadius: "50%", cursor: "pointer",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        <ChevronLeft size={20} color="#fff" />
+      </button>
+      <div style={{
+        width: 64, height: 64, borderRadius: "50%",
+        background: "rgba(255,255,255,0.15)", border: "3px solid rgba(255,255,255,0.4)",
+        margin: "0 auto 14px",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        <PentagonLogo size={46} />
+      </div>
+      <div style={{ fontSize: 21, fontWeight: 800, color: "#fff", marginBottom: 4 }}>{title}</div>
+      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>{sub}</div>
+    </div>
+  );
+
+  // ── STEP 1: Account info ──────────────────────────────────────────────────
+  if (step === 1) return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, position: "relative" }}>
+      <Header title="Create Account" sub="Join thousands of earners today" />
+      <div style={{ margin: "-24px 20px 0", background: C.white, borderRadius: 16, padding: "24px 20px", boxShadow: "0 4px 24px rgba(0,0,0,0.10)" }}>
+        <StepDots />
+        <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 16 }}>Step 1 — Basic Information</div>
+        <Field label="Phone Number" value={phone} set={setPhone} placeholder="Enter your phone number"
+          icon={<MessageCircle size={16} color={C.textLight} />} type="tel" />
+        <Field label="Username" value={username} set={setUsername} placeholder="Choose a username (min 3 chars)"
+          icon={<User size={16} color={C.textLight} />} />
+        <Field label="Password" value={pwd} set={setPwd} placeholder="Minimum 6 characters"
+          icon={<Lock size={16} color={C.textLight} />} type={showPwd ? "text" : "password"}
+          suffix={
+            <button onClick={() => setShowPwd(v => !v)} style={{ border: "none", background: "none", cursor: "pointer" }}>
+              {showPwd ? <EyeOff size={16} color={C.textLight} /> : <Eye size={16} color={C.textLight} />}
+            </button>
+          }
+        />
+        <Field label="Confirm Password" value={confirm} set={setConfirm} placeholder="Re-enter your password"
+          icon={<Shield size={16} color={C.textLight} />} type={showConf ? "text" : "password"}
+          error={pwdMismatch ? "Passwords do not match" : undefined}
+          suffix={
+            <button onClick={() => setShowConf(v => !v)} style={{ border: "none", background: "none", cursor: "pointer" }}>
+              {showConf ? <EyeOff size={16} color={C.textLight} /> : <Eye size={16} color={C.textLight} />}
+            </button>
+          }
+        />
+        <button onClick={() => step1Valid && setStep(2)} style={{
+          width: "100%", marginTop: 6,
+          background: step1Valid
+            ? `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`
+            : C.border,
+          border: "none", borderRadius: 10, padding: "14px 0",
+          fontSize: 15, fontWeight: 700, color: step1Valid ? "#fff" : C.textLight,
+          cursor: step1Valid ? "pointer" : "not-allowed",
+          boxShadow: step1Valid ? `0 4px 16px rgba(245,161,0,0.4)` : "none",
+          transition: "all 200ms ease",
+        }}>Continue</button>
+        <div style={{ textAlign: "center", fontSize: 13, color: C.textMid, marginTop: 16 }}>
+          Already have an account?{" "}
+          <span onClick={onBack} style={{ color: C.orange, fontWeight: 600, cursor: "pointer" }}>Login</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── STEP 2: Invite code ───────────────────────────────────────────────────
+  if (step === 2) return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, position: "relative" }}>
+      <Header title="Invite Code" sub="Enter the referral code from your inviter" />
+      <div style={{ margin: "-24px 20px 0", background: C.white, borderRadius: 16, padding: "24px 20px", boxShadow: "0 4px 24px rgba(0,0,0,0.10)" }}>
+        <StepDots />
+        <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 16 }}>Step 2 — Referral Code</div>
+
+        {/* Invite code icon */}
+        <div style={{ textAlign: "center", marginBottom: 20 }}>
+          <div style={{
+            width: 72, height: 72, borderRadius: 20,
+            background: `linear-gradient(135deg, ${C.orange}20 0%, ${C.orangeDark}15 100%)`,
+            border: `2px dashed ${C.orange}60`,
+            margin: "0 auto 10px",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <Users size={32} color={C.orange} />
+          </div>
+          <div style={{ fontSize: 12, color: C.textLight, lineHeight: 1.5 }}>
+            An invite code is required to register.<br />
+            Ask your referrer for their code.
+          </div>
+        </div>
+
+        <Field label="Invite Code" value={inviteCode} set={setInviteCode} placeholder="Enter 6–10 digit invite code"
+          icon={<FileText size={16} color={C.textLight} />}
+        />
+
+        {/* Bonus badge */}
+        <div style={{
+          background: `${C.green}12`, border: `1px solid ${C.green}40`,
+          borderRadius: 10, padding: "10px 14px", marginBottom: 20,
+          display: "flex", alignItems: "center", gap: 10,
+        }}>
+          <CheckCircle2 size={18} color={C.green} style={{ flexShrink: 0 }} />
+          <div style={{ fontSize: 12, color: C.text }}>
+            <span style={{ fontWeight: 700 }}>Welcome Bonus:</span> Register with a valid code and earn{" "}
+            <span style={{ color: C.green, fontWeight: 700 }}>+5.00 USDT</span> instantly credited to your account.
+          </div>
+        </div>
+
+        <button onClick={() => inviteCode.trim().length >= 4 && setStep(3)} style={{
+          width: "100%",
+          background: inviteCode.trim().length >= 4
+            ? `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`
+            : C.border,
+          border: "none", borderRadius: 10, padding: "14px 0",
+          fontSize: 15, fontWeight: 700,
+          color: inviteCode.trim().length >= 4 ? "#fff" : C.textLight,
+          cursor: inviteCode.trim().length >= 4 ? "pointer" : "not-allowed",
+          boxShadow: inviteCode.trim().length >= 4 ? `0 4px 16px rgba(245,161,0,0.4)` : "none",
+          transition: "all 200ms ease",
+        }}>Complete Registration</button>
+      </div>
+    </div>
+  );
+
+  // ── STEP 3: Success ───────────────────────────────────────────────────────
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, alignItems: "center", justifyContent: "center", padding: "24px 28px" }}>
+      {/* Animated success circle */}
+      <div style={{
+        width: 100, height: 100, borderRadius: "50%",
+        background: `linear-gradient(135deg, ${C.green} 0%, #16a34a 100%)`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        boxShadow: `0 0 0 16px ${C.green}20`,
+        marginBottom: 28,
+      }}>
+        <CheckCircle2 size={52} color="#fff" />
+      </div>
+
+      <div style={{ fontSize: 24, fontWeight: 800, color: C.text, marginBottom: 8, textAlign: "center" }}>
+        Registration Successful!
+      </div>
+      <div style={{ fontSize: 14, color: C.textMid, textAlign: "center", lineHeight: 1.6, marginBottom: 32 }}>
+        Welcome aboard, <strong>{username}</strong>! Your account has been created and a bonus of <span style={{ color: C.green, fontWeight: 700 }}>+5.00 USDT</span> has been credited.
+      </div>
+
+      {/* Summary card */}
+      <div style={{
+        width: "100%", background: C.white, borderRadius: 14,
+        border: `1px solid ${C.border}`, overflow: "hidden", marginBottom: 28,
+      }}>
+        {[
+          { label: "Username",      val: username,   icon: <User size={14} color={C.orange} /> },
+          { label: "Phone",         val: phone,      icon: <MessageCircle size={14} color={C.orange} /> },
+          { label: "Invite Code",   val: inviteCode, icon: <Users size={14} color={C.orange} /> },
+          { label: "Welcome Bonus", val: "+5.00 USDT", icon: <TrendingUp size={14} color={C.green} />, green: true },
+        ].map((row, i, arr) => (
+          <div key={row.label} style={{
+            display: "flex", alignItems: "center", gap: 12,
+            padding: "12px 16px",
+            borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : "none",
+          }}>
+            <div style={{
+              width: 28, height: 28, borderRadius: 8,
+              background: `${C.orange}15`,
+              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            }}>
+              {row.icon}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, color: C.textLight }}>{row.label}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: (row as { green?: boolean }).green ? C.green : C.text }}>{row.val}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <button onClick={onDone} style={{
+        width: "100%",
+        background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
+        border: "none", borderRadius: 12, padding: "15px 0",
+        fontSize: 16, fontWeight: 700, color: "#fff", cursor: "pointer",
+        boxShadow: `0 4px 16px rgba(245,161,0,0.4)`,
+      }}>Start Earning Now</button>
     </div>
   );
 }
@@ -2064,10 +2319,11 @@ function nowTimestamp() {
 }
 
 export default function App() {
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [tab, setTab] = useState<Tab>("home");
-  const [subPage, setSubPage] = useState<SubPage | null>(null);
-  const [taskPlatform, setTaskPlatform] = useState("amazon");
+  const [loggedIn,      setLoggedIn]      = useState(false);
+  const [showRegister,  setShowRegister]  = useState(false);
+  const [tab,           setTab]           = useState<Tab>("home");
+  const [subPage,       setSubPage]       = useState<SubPage | null>(null);
+  const [taskPlatform,  setTaskPlatform]  = useState("amazon");
   const [orders, setOrders] = useState<OrderRecord[]>(MOCK_ORDERS);
 
   const goSub = (page: SubPage) => setSubPage(page);
@@ -2167,7 +2423,17 @@ export default function App() {
 
         {/* App content */}
         {!loggedIn ? (
-          <LoginScreen onLogin={() => setLoggedIn(true)} />
+          showRegister ? (
+            <RegisterScreen
+              onDone={() => { setShowRegister(false); setLoggedIn(true); }}
+              onBack={() => setShowRegister(false)}
+            />
+          ) : (
+            <LoginScreen
+              onLogin={() => setLoggedIn(true)}
+              onRegister={() => setShowRegister(true)}
+            />
+          )
         ) : (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
             {renderContent()}
