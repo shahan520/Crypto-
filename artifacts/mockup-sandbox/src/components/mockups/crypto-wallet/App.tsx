@@ -2214,7 +2214,6 @@ function LoginScreen({ onLogin, onRegister }: { onLogin: () => void; onRegister:
 // REGISTER SCREEN  — single step, no phone, invite code mandatory
 // ═══════════════════════════════════════════════════════════════════════════════
 function RegisterScreen({ onDone, onBack }: { onDone: () => void; onBack: () => void }) {
-  const [done,          setDone]          = useState(false);
   const [username,      setUsername]      = useState("");
   const [pwd,           setPwd]           = useState("");
   const [confirm,       setConfirm]       = useState("");
@@ -2235,45 +2234,6 @@ function RegisterScreen({ onDone, onBack }: { onDone: () => void; onBack: () => 
   const pwdMismatch = confirm.length > 0 && pwd !== confirm;
   const codeOk      = inviteCode.trim().length >= 4;
   const canSubmit   = username.trim().length >= 3 && pwd.length >= 6 && pwd === confirm && codeOk;
-
-  // ── Success screen ────────────────────────────────────────────────────────
-  if (done) return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, alignItems: "center", justifyContent: "center", padding: "24px 28px" }}>
-      <div style={{
-        width: 100, height: 100, borderRadius: "50%",
-        background: `linear-gradient(135deg, ${C.green} 0%, #16a34a 100%)`,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        boxShadow: `0 0 0 16px ${C.green}20`, marginBottom: 28,
-      }}>
-        <CheckCircle2 size={52} color="#fff" />
-      </div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: C.text, marginBottom: 8, textAlign: "center" }}>Registration Successful!</div>
-      <div style={{ fontSize: 14, color: C.textMid, textAlign: "center", lineHeight: 1.6, marginBottom: 28 }}>
-        Welcome, <strong>{username}</strong>! A bonus of <span style={{ color: C.green, fontWeight: 700 }}>+5.00 USDT</span> has been credited.
-      </div>
-      <div style={{ width: "100%", background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden", marginBottom: 28 }}>
-        {([
-          { label: "Username",      val: username,    icon: <User size={14} color={C.orange} />,       green: false },
-          { label: "Invite Code",   val: inviteCode,  icon: <Users size={14} color={C.orange} />,      green: false },
-          { label: "Welcome Bonus", val: "+5.00 USDT",icon: <TrendingUp size={14} color={C.green} />,  green: true  },
-        ] as { label: string; val: string; icon: React.ReactNode; green: boolean }[]).map((row, i, arr) => (
-          <div key={row.label} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : "none" }}>
-            <div style={{ width: 28, height: 28, borderRadius: 8, background: `${C.orange}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{row.icon}</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, color: C.textLight }}>{row.label}</div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: row.green ? C.green : C.text }}>{row.val}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-      <button onClick={onDone} style={{
-        width: "100%", background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
-        border: "none", borderRadius: 12, padding: "15px 0",
-        fontSize: 16, fontWeight: 700, color: "#fff", cursor: "pointer",
-        boxShadow: `0 4px 16px rgba(245,161,0,0.4)`,
-      }}>Start Earning Now</button>
-    </div>
-  );
 
   // ── Registration form (single step) ──────────────────────────────────────
   return (
