@@ -2211,256 +2211,204 @@ function LoginScreen({ onLogin, onRegister }: { onLogin: () => void; onRegister:
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// REGISTER SCREEN  (3-step flow)
+// REGISTER SCREEN  — single step, no phone, invite code mandatory
 // ═══════════════════════════════════════════════════════════════════════════════
 function RegisterScreen({ onDone, onBack }: { onDone: () => void; onBack: () => void }) {
-  const [step, setStep] = useState(1);
+  const [done,          setDone]          = useState(false);
+  const [username,      setUsername]      = useState("");
+  const [pwd,           setPwd]           = useState("");
+  const [confirm,       setConfirm]       = useState("");
+  const [inviteCode,    setInviteCode]    = useState("");
+  const [autoFilled,    setAutoFilled]    = useState(false);
+  const [showPwd,       setShowPwd]       = useState(false);
+  const [showConf,      setShowConf]      = useState(false);
 
-  // Step 1 fields
-  const [phone,    setPhone]    = useState("");
-  const [username, setUsername] = useState("");
-  const [pwd,      setPwd]      = useState("");
-  const [confirm,  setConfirm]  = useState("");
-  const [showPwd,  setShowPwd]  = useState(false);
-  const [showConf, setShowConf] = useState(false);
+  // Auto-fill invite code from URL ?code= / ?ref= / ?invite=
+  useEffect(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const c = p.get("code") ?? p.get("ref") ?? p.get("invite");
+      if (c && c.trim().length >= 4) { setInviteCode(c.trim()); setAutoFilled(true); }
+    } catch { /* ignore */ }
+  }, []);
 
-  // Step 2 fields
-  const [inviteCode, setInviteCode] = useState("");
-
-  // Step 1 validation
-  const step1Valid = phone.trim().length >= 7 && username.trim().length >= 3 && pwd.length >= 6 && pwd === confirm;
   const pwdMismatch = confirm.length > 0 && pwd !== confirm;
+  const codeOk      = inviteCode.trim().length >= 4;
+  const canSubmit   = username.trim().length >= 3 && pwd.length >= 6 && pwd === confirm && codeOk;
 
-  // ── Step indicator ────────────────────────────────────────────────────────
-  const StepDots = () => (
-    <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 24 }}>
-      {[1, 2].map(n => (
-        <div key={n} style={{
-          width: n === step ? 28 : 8, height: 8, borderRadius: 4,
-          background: n <= step ? C.orange : C.border,
-          transition: "all 300ms ease",
-        }} />
-      ))}
-    </div>
-  );
-
-  // ── Reusable input row ────────────────────────────────────────────────────
-  const Field = ({
-    label, value, set, placeholder, icon, type = "text", suffix, error,
-  }: {
-    label: string; value: string; set: (v: string) => void;
-    placeholder: string; icon: React.ReactNode;
-    type?: string; suffix?: React.ReactNode; error?: string;
-  }) => (
-    <div style={{ marginBottom: 14 }}>
-      <div style={{ fontSize: 12, color: C.textLight, marginBottom: 6 }}>{label}</div>
+  // ── Success screen ────────────────────────────────────────────────────────
+  if (done) return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, alignItems: "center", justifyContent: "center", padding: "24px 28px" }}>
       <div style={{
-        display: "flex", alignItems: "center", gap: 8,
-        border: `1.5px solid ${error ? C.red : C.border}`, borderRadius: 10, padding: "11px 14px",
+        width: 100, height: 100, borderRadius: "50%",
+        background: `linear-gradient(135deg, ${C.green} 0%, #16a34a 100%)`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        boxShadow: `0 0 0 16px ${C.green}20`, marginBottom: 28,
       }}>
-        {icon}
-        <input
-          value={value} onChange={e => set(e.target.value)}
-          placeholder={placeholder} type={type}
-          style={{ flex: 1, border: "none", outline: "none", fontSize: 14, color: C.text, background: "transparent" }}
-        />
-        {suffix}
+        <CheckCircle2 size={52} color="#fff" />
       </div>
-      {error && <div style={{ fontSize: 11, color: C.red, marginTop: 4 }}>{error}</div>}
+      <div style={{ fontSize: 24, fontWeight: 800, color: C.text, marginBottom: 8, textAlign: "center" }}>Registration Successful!</div>
+      <div style={{ fontSize: 14, color: C.textMid, textAlign: "center", lineHeight: 1.6, marginBottom: 28 }}>
+        Welcome, <strong>{username}</strong>! A bonus of <span style={{ color: C.green, fontWeight: 700 }}>+5.00 USDT</span> has been credited.
+      </div>
+      <div style={{ width: "100%", background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden", marginBottom: 28 }}>
+        {([
+          { label: "Username",      val: username,    icon: <User size={14} color={C.orange} />,       green: false },
+          { label: "Invite Code",   val: inviteCode,  icon: <Users size={14} color={C.orange} />,      green: false },
+          { label: "Welcome Bonus", val: "+5.00 USDT",icon: <TrendingUp size={14} color={C.green} />,  green: true  },
+        ] as { label: string; val: string; icon: React.ReactNode; green: boolean }[]).map((row, i, arr) => (
+          <div key={row.label} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : "none" }}>
+            <div style={{ width: 28, height: 28, borderRadius: 8, background: `${C.orange}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{row.icon}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, color: C.textLight }}>{row.label}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: row.green ? C.green : C.text }}>{row.val}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <button onClick={onDone} style={{
+        width: "100%", background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
+        border: "none", borderRadius: 12, padding: "15px 0",
+        fontSize: 16, fontWeight: 700, color: "#fff", cursor: "pointer",
+        boxShadow: `0 4px 16px rgba(245,161,0,0.4)`,
+      }}>Start Earning Now</button>
     </div>
   );
 
-  // ── Shared header ─────────────────────────────────────────────────────────
-  const Header = ({ title, sub }: { title: string; sub: string }) => (
-    <div style={{
-      background: `linear-gradient(160deg, ${C.wine} 0%, ${C.wineDark} 55%, ${C.bg} 100%)`,
-      padding: "36px 24px 56px", textAlign: "center",
-    }}>
-      <button onClick={step === 1 ? onBack : () => setStep(s => s - 1)} style={{
-        position: "absolute", top: 36, left: 14,
-        background: "rgba(255,255,255,0.15)", border: "none",
-        width: 36, height: 36, borderRadius: "50%", cursor: "pointer",
-        display: "flex", alignItems: "center", justifyContent: "center",
-      }}>
-        <ChevronLeft size={20} color="#fff" />
-      </button>
-      <div style={{
-        width: 64, height: 64, borderRadius: "50%",
-        background: "rgba(255,255,255,0.15)", border: "3px solid rgba(255,255,255,0.4)",
-        margin: "0 auto 14px",
-        display: "flex", alignItems: "center", justifyContent: "center",
-      }}>
-        <PentagonLogo size={46} />
-      </div>
-      <div style={{ fontSize: 21, fontWeight: 800, color: "#fff", marginBottom: 4 }}>{title}</div>
-      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>{sub}</div>
-    </div>
-  );
+  // ── Registration form (single step) ──────────────────────────────────────
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, position: "relative", overflowY: "auto" }}>
 
-  // ── STEP 1: Account info ──────────────────────────────────────────────────
-  if (step === 1) return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, position: "relative" }}>
-      <Header title="Create Account" sub="Join thousands of earners today" />
-      <div style={{ margin: "-24px 20px 0", background: C.white, borderRadius: 16, padding: "24px 20px", boxShadow: "0 4px 24px rgba(0,0,0,0.10)" }}>
-        <StepDots />
-        <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 16 }}>Step 1 — Basic Information</div>
-        <Field label="Phone Number" value={phone} set={setPhone} placeholder="Enter your phone number"
-          icon={<MessageCircle size={16} color={C.textLight} />} type="tel" />
-        <Field label="Username" value={username} set={setUsername} placeholder="Choose a username (min 3 chars)"
-          icon={<User size={16} color={C.textLight} />} />
-        <Field label="Password" value={pwd} set={setPwd} placeholder="Minimum 6 characters"
-          icon={<Lock size={16} color={C.textLight} />} type={showPwd ? "text" : "password"}
-          suffix={
+      {/* Wine gradient header */}
+      <div style={{ background: `linear-gradient(160deg, ${C.wine} 0%, ${C.wineDark} 55%, ${C.bg} 100%)`, padding: "36px 24px 56px", textAlign: "center", flexShrink: 0 }}>
+        <button onClick={onBack} style={{ position: "absolute", top: 36, left: 14, background: "rgba(255,255,255,0.15)", border: "none", width: 36, height: 36, borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <ChevronLeft size={20} color="#fff" />
+        </button>
+        <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(255,255,255,0.15)", border: "3px solid rgba(255,255,255,0.4)", margin: "0 auto 14px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <PentagonLogo size={46} />
+        </div>
+        <div style={{ fontSize: 21, fontWeight: 800, color: "#fff", marginBottom: 4 }}>Create Account</div>
+        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>Invite code required to register</div>
+      </div>
+
+      {/* Form card */}
+      <div style={{ margin: "-24px 20px 24px", background: C.white, borderRadius: 16, padding: "24px 20px", boxShadow: "0 4px 24px rgba(0,0,0,0.10)" }}>
+
+        {/* Auto-filled banner */}
+        {autoFilled && (
+          <div style={{ background: `${C.green}12`, border: `1px solid ${C.green}40`, borderRadius: 10, padding: "10px 14px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+            <CheckCircle2 size={16} color={C.green} style={{ flexShrink: 0 }} />
+            <span style={{ fontSize: 12, color: C.text, lineHeight: 1.4 }}>
+              <strong>Invite link detected.</strong> Your referral code has been automatically applied.
+            </span>
+          </div>
+        )}
+
+        {/* Username */}
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 12, color: C.textLight, marginBottom: 6 }}>Username</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, border: `1.5px solid ${C.border}`, borderRadius: 10, padding: "11px 14px" }}>
+            <User size={16} color={C.textLight} />
+            <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Choose a username (min 3 chars)" type="text"
+              style={{ flex: 1, border: "none", outline: "none", fontSize: 14, color: C.text, background: "transparent" }} />
+          </div>
+        </div>
+
+        {/* Password */}
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 12, color: C.textLight, marginBottom: 6 }}>Password</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, border: `1.5px solid ${C.border}`, borderRadius: 10, padding: "11px 14px" }}>
+            <Lock size={16} color={C.textLight} />
+            <input value={pwd} onChange={e => setPwd(e.target.value)} placeholder="Minimum 6 characters" type={showPwd ? "text" : "password"}
+              style={{ flex: 1, border: "none", outline: "none", fontSize: 14, color: C.text, background: "transparent" }} />
             <button onClick={() => setShowPwd(v => !v)} style={{ border: "none", background: "none", cursor: "pointer" }}>
               {showPwd ? <EyeOff size={16} color={C.textLight} /> : <Eye size={16} color={C.textLight} />}
             </button>
-          }
-        />
-        <Field label="Confirm Password" value={confirm} set={setConfirm} placeholder="Re-enter your password"
-          icon={<Shield size={16} color={C.textLight} />} type={showConf ? "text" : "password"}
-          error={pwdMismatch ? "Passwords do not match" : undefined}
-          suffix={
+          </div>
+        </div>
+
+        {/* Confirm Password */}
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 12, color: C.textLight, marginBottom: 6 }}>Confirm Password</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, border: `1.5px solid ${pwdMismatch ? C.red : C.border}`, borderRadius: 10, padding: "11px 14px" }}>
+            <Shield size={16} color={C.textLight} />
+            <input value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="Re-enter your password" type={showConf ? "text" : "password"}
+              style={{ flex: 1, border: "none", outline: "none", fontSize: 14, color: C.text, background: "transparent" }} />
             <button onClick={() => setShowConf(v => !v)} style={{ border: "none", background: "none", cursor: "pointer" }}>
               {showConf ? <EyeOff size={16} color={C.textLight} /> : <Eye size={16} color={C.textLight} />}
             </button>
-          }
-        />
-        <button onClick={() => step1Valid && setStep(2)} style={{
-          width: "100%", marginTop: 6,
-          background: step1Valid
-            ? `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`
-            : C.border,
+          </div>
+          {pwdMismatch && <div style={{ fontSize: 11, color: C.red, marginTop: 4 }}>Passwords do not match</div>}
+        </div>
+
+        {/* Invite Code */}
+        <div style={{ marginBottom: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+            <span style={{ fontSize: 12, color: C.textLight }}>Invite Code <span style={{ color: C.red }}>*</span></span>
+            {autoFilled && (
+              <span style={{ fontSize: 10, fontWeight: 700, color: C.green, background: `${C.green}18`, padding: "2px 8px", borderRadius: 8, display: "flex", alignItems: "center", gap: 3 }}>
+                <CheckCircle2 size={10} /> Auto-filled
+              </span>
+            )}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, border: `1.5px solid ${autoFilled ? C.green : C.border}`, borderRadius: 10, padding: "11px 14px", background: autoFilled ? `${C.green}08` : "transparent" }}>
+            <Users size={16} color={autoFilled ? C.green : C.textLight} />
+            <input value={inviteCode} onChange={e => !autoFilled && setInviteCode(e.target.value)} placeholder="Enter referral / invite code" type="text"
+              readOnly={autoFilled}
+              style={{ flex: 1, border: "none", outline: "none", fontSize: 14, color: autoFilled ? C.textMid : C.text, background: "transparent", cursor: autoFilled ? "default" : "text" }} />
+            {autoFilled && <Lock size={13} color={C.green} />}
+          </div>
+        </div>
+
+        {/* "Use a different code" when auto-filled */}
+        {autoFilled && (
+          <div style={{ textAlign: "right", marginBottom: 14 }}>
+            <span onClick={() => { setAutoFilled(false); setInviteCode(""); }} style={{ fontSize: 11, color: C.textLight, cursor: "pointer", textDecoration: "underline" }}>Use a different code</span>
+          </div>
+        )}
+
+        {/* Required notice when empty */}
+        {!autoFilled && inviteCode.length === 0 && (
+          <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 8, padding: "8px 12px", marginBottom: 14, marginTop: 8, display: "flex", alignItems: "flex-start", gap: 8 }}>
+            <AlertCircle size={14} color="#ea580c" style={{ flexShrink: 0, marginTop: 1 }} />
+            <span style={{ fontSize: 11, color: "#9a3412", lineHeight: 1.4 }}>An invite code is <strong>required</strong>. Ask your referrer or join via an invite link.</span>
+          </div>
+        )}
+
+        {/* Demo: Simulate invite link */}
+        {!autoFilled && (
+          <button onClick={() => { setInviteCode("925886"); setAutoFilled(true); }} style={{
+            width: "100%", border: `1.5px dashed ${C.orange}60`, borderRadius: 8, padding: "9px 0", marginBottom: 16,
+            background: `${C.orange}08`, cursor: "pointer", fontSize: 12, color: C.orange, fontWeight: 600,
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+          }}>
+            <Bell size={13} /> Simulate: Join via Invite Link
+          </button>
+        )}
+
+        {/* Welcome bonus */}
+        <div style={{ background: `${C.green}10`, border: `1px solid ${C.green}35`, borderRadius: 10, padding: "10px 14px", marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
+          <TrendingUp size={18} color={C.green} style={{ flexShrink: 0 }} />
+          <div style={{ fontSize: 12, color: C.text }}>
+            <span style={{ fontWeight: 700 }}>Welcome Bonus:</span> Register with a valid invite code and earn <span style={{ color: C.green, fontWeight: 700 }}>+5.00 USDT</span> instantly.
+          </div>
+        </div>
+
+        <button onClick={() => canSubmit && setDone(true)} style={{
+          width: "100%",
+          background: canSubmit ? `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)` : C.border,
           border: "none", borderRadius: 10, padding: "14px 0",
-          fontSize: 15, fontWeight: 700, color: step1Valid ? "#fff" : C.textLight,
-          cursor: step1Valid ? "pointer" : "not-allowed",
-          boxShadow: step1Valid ? `0 4px 16px rgba(245,161,0,0.4)` : "none",
+          fontSize: 15, fontWeight: 700, color: canSubmit ? "#fff" : C.textLight,
+          cursor: canSubmit ? "pointer" : "not-allowed",
+          boxShadow: canSubmit ? `0 4px 16px rgba(245,161,0,0.4)` : "none",
           transition: "all 200ms ease",
-        }}>Continue</button>
+        }}>Create Account</button>
+
         <div style={{ textAlign: "center", fontSize: 13, color: C.textMid, marginTop: 16 }}>
           Already have an account?{" "}
           <span onClick={onBack} style={{ color: C.orange, fontWeight: 600, cursor: "pointer" }}>Login</span>
         </div>
       </div>
-    </div>
-  );
-
-  // ── STEP 2: Invite code ───────────────────────────────────────────────────
-  if (step === 2) return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, position: "relative" }}>
-      <Header title="Invite Code" sub="Enter the referral code from your inviter" />
-      <div style={{ margin: "-24px 20px 0", background: C.white, borderRadius: 16, padding: "24px 20px", boxShadow: "0 4px 24px rgba(0,0,0,0.10)" }}>
-        <StepDots />
-        <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 16 }}>Step 2 — Referral Code</div>
-
-        {/* Invite code icon */}
-        <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <div style={{
-            width: 72, height: 72, borderRadius: 20,
-            background: `linear-gradient(135deg, ${C.orange}20 0%, ${C.orangeDark}15 100%)`,
-            border: `2px dashed ${C.orange}60`,
-            margin: "0 auto 10px",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            <Users size={32} color={C.orange} />
-          </div>
-          <div style={{ fontSize: 12, color: C.textLight, lineHeight: 1.5 }}>
-            An invite code is required to register.<br />
-            Ask your referrer for their code.
-          </div>
-        </div>
-
-        <Field label="Invite Code" value={inviteCode} set={setInviteCode} placeholder="Enter 6–10 digit invite code"
-          icon={<FileText size={16} color={C.textLight} />}
-        />
-
-        {/* Bonus badge */}
-        <div style={{
-          background: `${C.green}12`, border: `1px solid ${C.green}40`,
-          borderRadius: 10, padding: "10px 14px", marginBottom: 20,
-          display: "flex", alignItems: "center", gap: 10,
-        }}>
-          <CheckCircle2 size={18} color={C.green} style={{ flexShrink: 0 }} />
-          <div style={{ fontSize: 12, color: C.text }}>
-            <span style={{ fontWeight: 700 }}>Welcome Bonus:</span> Register with a valid code and earn{" "}
-            <span style={{ color: C.green, fontWeight: 700 }}>+5.00 USDT</span> instantly credited to your account.
-          </div>
-        </div>
-
-        <button onClick={() => inviteCode.trim().length >= 4 && setStep(3)} style={{
-          width: "100%",
-          background: inviteCode.trim().length >= 4
-            ? `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`
-            : C.border,
-          border: "none", borderRadius: 10, padding: "14px 0",
-          fontSize: 15, fontWeight: 700,
-          color: inviteCode.trim().length >= 4 ? "#fff" : C.textLight,
-          cursor: inviteCode.trim().length >= 4 ? "pointer" : "not-allowed",
-          boxShadow: inviteCode.trim().length >= 4 ? `0 4px 16px rgba(245,161,0,0.4)` : "none",
-          transition: "all 200ms ease",
-        }}>Complete Registration</button>
-      </div>
-    </div>
-  );
-
-  // ── STEP 3: Success ───────────────────────────────────────────────────────
-  return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, alignItems: "center", justifyContent: "center", padding: "24px 28px" }}>
-      {/* Animated success circle */}
-      <div style={{
-        width: 100, height: 100, borderRadius: "50%",
-        background: `linear-gradient(135deg, ${C.green} 0%, #16a34a 100%)`,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        boxShadow: `0 0 0 16px ${C.green}20`,
-        marginBottom: 28,
-      }}>
-        <CheckCircle2 size={52} color="#fff" />
-      </div>
-
-      <div style={{ fontSize: 24, fontWeight: 800, color: C.text, marginBottom: 8, textAlign: "center" }}>
-        Registration Successful!
-      </div>
-      <div style={{ fontSize: 14, color: C.textMid, textAlign: "center", lineHeight: 1.6, marginBottom: 32 }}>
-        Welcome aboard, <strong>{username}</strong>! Your account has been created and a bonus of <span style={{ color: C.green, fontWeight: 700 }}>+5.00 USDT</span> has been credited.
-      </div>
-
-      {/* Summary card */}
-      <div style={{
-        width: "100%", background: C.white, borderRadius: 14,
-        border: `1px solid ${C.border}`, overflow: "hidden", marginBottom: 28,
-      }}>
-        {[
-          { label: "Username",      val: username,   icon: <User size={14} color={C.orange} /> },
-          { label: "Phone",         val: phone,      icon: <MessageCircle size={14} color={C.orange} /> },
-          { label: "Invite Code",   val: inviteCode, icon: <Users size={14} color={C.orange} /> },
-          { label: "Welcome Bonus", val: "+5.00 USDT", icon: <TrendingUp size={14} color={C.green} />, green: true },
-        ].map((row, i, arr) => (
-          <div key={row.label} style={{
-            display: "flex", alignItems: "center", gap: 12,
-            padding: "12px 16px",
-            borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : "none",
-          }}>
-            <div style={{
-              width: 28, height: 28, borderRadius: 8,
-              background: `${C.orange}15`,
-              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-            }}>
-              {row.icon}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, color: C.textLight }}>{row.label}</div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: (row as { green?: boolean }).green ? C.green : C.text }}>{row.val}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <button onClick={onDone} style={{
-        width: "100%",
-        background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
-        border: "none", borderRadius: 12, padding: "15px 0",
-        fontSize: 16, fontWeight: 700, color: "#fff", cursor: "pointer",
-        boxShadow: `0 4px 16px rgba(245,161,0,0.4)`,
-      }}>Start Earning Now</button>
     </div>
   );
 }
