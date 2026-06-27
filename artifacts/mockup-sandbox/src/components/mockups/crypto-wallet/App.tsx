@@ -431,9 +431,29 @@ function TaskDetailScreen({
     parseFloat(data.balance.replace(/,/g, "")) + parseFloat(expected)
   ).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  const openPopup = () => { setPopupOpen(true); setTimeout(() => setPopupVisible(true), 20); };
+  // ── Session state ─────────────────────────────────────────────────────────
+  const SESSION_LIMIT = 25;
+  const [sessionCount,    setSessionCount]    = useState(0);
+  const [sessionLimitHit, setSessionLimitHit] = useState(false);
+  const [adminPending,    setAdminPending]    = useState(false);
+  const [successVisible,  setSuccessVisible]  = useState(false);
+
+  const openPopup  = () => { setPopupOpen(true); setTimeout(() => setPopupVisible(true), 20); };
   const closePopup = () => { setPopupVisible(false); setTimeout(() => setPopupOpen(false), 280); };
-  const handleSubmit = () => { onSubmitOrder(p, orderAmt, commission); closePopup(); };
+
+  const handleSubmit = () => {
+    onSubmitOrder(p, orderAmt, commission);
+    setSuccessVisible(true);
+    const delay = 1000 + Math.random() * 2000; // 1–3 seconds
+    setTimeout(() => {
+      setSuccessVisible(false);
+      setPopupVisible(false);
+      setTimeout(() => setPopupOpen(false), 280);
+      const next = sessionCount + 1;
+      setSessionCount(next);
+      if (next >= SESSION_LIMIT) setSessionLimitHit(true);
+    }, delay);
+  };
 
   const stats = [
     { label: "Today's Orders",            value: data.todayOrders,         highlight: false },
@@ -540,18 +560,135 @@ function TaskDetailScreen({
           </div>
         </div>
 
-        {/* ── Grab button ── */}
-        <button onClick={openPopup} style={{
-          width: "100%",
-          background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
-          border: "none", borderRadius: 10, padding: "16px 0",
-          fontSize: 16, fontWeight: 700, color: "#fff", cursor: "pointer",
-          boxShadow: `0 4px 16px rgba(245,161,0,0.4)`,
-        }}>Grab the order immediately</button>
+        {/* ── Session progress bar ── */}
+        {!sessionLimitHit && (
+          <div style={{ background: C.white, borderRadius: 10, padding: "10px 14px", marginBottom: 10, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <span style={{ fontSize: 12, color: C.textMid, fontWeight: 600 }}>Session Progress</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: sessionCount >= 20 ? C.red : C.orange }}>
+                {sessionCount} / {SESSION_LIMIT} orders
+              </span>
+            </div>
+            <div style={{ height: 6, background: C.border, borderRadius: 3, overflow: "hidden" }}>
+              <div style={{
+                height: "100%", borderRadius: 3,
+                width: `${(sessionCount / SESSION_LIMIT) * 100}%`,
+                background: sessionCount >= 20
+                  ? `linear-gradient(90deg, ${C.orange}, ${C.red})`
+                  : `linear-gradient(90deg, ${C.orange}, ${C.orangeDark})`,
+                transition: "width 400ms ease",
+              }} />
+            </div>
+            {sessionCount >= 20 && (
+              <div style={{ fontSize: 11, color: C.red, marginTop: 5, textAlign: "center" }}>
+                ⚠ {SESSION_LIMIT - sessionCount} order{SESSION_LIMIT - sessionCount !== 1 ? "s" : ""} remaining before admin approval required
+              </div>
+            )}
+          </div>
+        )}
 
-        <div style={{ fontSize: 12, color: C.textLight, textAlign: "center", marginTop: 12 }}>
-          Hint: Ensure your account balance meets the minimum requirement before grabbing orders.
-        </div>
+        {/* ── Grab button OR session-limit panel ── */}
+        {sessionLimitHit ? (
+          <div style={{
+            background: C.white, borderRadius: 12,
+            border: `1.5px solid ${adminPending ? "#f59e0b" : C.border}`,
+            overflow: "hidden",
+            boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+          }}>
+            {/* Header */}
+            <div style={{
+              padding: "14px 16px",
+              background: adminPending
+                ? "linear-gradient(135deg,#fef3c7,#fde68a)"
+                : "linear-gradient(135deg,#fee2e2,#fecaca)",
+              borderBottom: `1px solid ${adminPending ? "#fbbf24" : "#fca5a5"}`,
+              display: "flex", alignItems: "center", gap: 10,
+            }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: "50%",
+                background: adminPending ? "#f59e0b" : C.red,
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}>
+                {adminPending
+                  ? <Clock size={18} color="#fff" />
+                  : <AlertCircle size={18} color="#fff" />}
+              </div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>
+                  {adminPending ? "Approval Pending…" : "Session Limit Reached"}
+                </div>
+                <div style={{ fontSize: 11, color: C.textMid }}>
+                  {adminPending
+                    ? "Waiting for admin to grant next session"
+                    : `${SESSION_LIMIT} orders completed — admin approval required`}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ padding: "14px 16px" }}>
+              {/* Stats row */}
+              <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+                {[
+                  { label: "Orders Completed", val: `${SESSION_LIMIT}`, color: C.text },
+                  { label: "Session Earnings",  val: `${(sessionCount * parseFloat(commission)).toFixed(2)} USDT`, color: C.green },
+                ].map(s => (
+                  <div key={s.label} style={{
+                    flex: 1, background: C.bg, borderRadius: 8,
+                    padding: "8px 10px", textAlign: "center", border: `1px solid ${C.border}`,
+                  }}>
+                    <div style={{ fontSize: 10, color: C.textLight, marginBottom: 3 }}>{s.label}</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: s.color }}>{s.val}</div>
+                  </div>
+                ))}
+              </div>
+
+              {adminPending ? (
+                /* Pending state */
+                <div style={{ textAlign: "center" }}>
+                  <div style={{
+                    display: "inline-flex", alignItems: "center", gap: 8,
+                    background: "#fef3c7", border: "1px solid #fbbf24",
+                    borderRadius: 10, padding: "10px 20px", marginBottom: 12,
+                  }}>
+                    <Clock size={15} color="#d97706" />
+                    <span style={{ fontSize: 13, color: "#92400e", fontWeight: 600 }}>Request submitted — awaiting admin</span>
+                  </div>
+                  {/* Simulated admin approve button */}
+                  <div style={{ fontSize: 11, color: C.textLight, marginBottom: 8 }}>[ Admin panel — simulation only ]</div>
+                  <button
+                    onClick={() => { setAdminPending(false); setSessionLimitHit(false); setSessionCount(0); }}
+                    style={{
+                      width: "100%", border: "none", borderRadius: 8, padding: "10px 0",
+                      background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`,
+                      color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                    }}
+                  >✓ Admin: Grant Approval</button>
+                </div>
+              ) : (
+                /* Request button */
+                <button onClick={() => setAdminPending(true)} style={{
+                  width: "100%", border: "none", borderRadius: 10, padding: "14px 0",
+                  background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`,
+                  color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer",
+                  boxShadow: "0 4px 14px rgba(122,44,62,0.35)",
+                }}>Request Admin Approval</button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            <button onClick={openPopup} style={{
+              width: "100%",
+              background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
+              border: "none", borderRadius: 10, padding: "16px 0",
+              fontSize: 16, fontWeight: 700, color: "#fff", cursor: "pointer",
+              boxShadow: `0 4px 16px rgba(245,161,0,0.4)`,
+            }}>Grab the order immediately</button>
+            <div style={{ fontSize: 12, color: C.textLight, textAlign: "center", marginTop: 12 }}>
+              Hint: Ensure your account balance meets the minimum requirement before grabbing orders.
+            </div>
+          </>
+        )}
       </div>
 
       {/* ── Grab Order Popup ── */}
@@ -594,6 +731,69 @@ function TaskDetailScreen({
 
             {/* Scrollable body */}
             <div style={{ overflowY: "auto", padding: "0 16px 24px", maxHeight: 540 }}>
+
+              {/* ── Success overlay (shown after submit, auto-dismisses) ── */}
+              {successVisible && (
+                <div style={{ textAlign: "center", padding: "16px 0 8px" }}>
+                  {/* Animated ring + checkmark */}
+                  <div style={{
+                    width: 88, height: 88, borderRadius: "50%",
+                    background: `linear-gradient(135deg, ${C.green} 0%, #16a34a 100%)`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    margin: "0 auto 16px",
+                    boxShadow: `0 0 0 14px ${C.green}22, 0 6px 24px ${C.green}55`,
+                  }}>
+                    <CheckCircle2 size={46} color="#fff" />
+                  </div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: C.text, marginBottom: 6 }}>Order Submitted!</div>
+                  <div style={{ fontSize: 13, color: C.textMid, marginBottom: 20 }}>Your order has been recorded successfully.</div>
+
+                  {/* Mini commission card */}
+                  <div style={{
+                    background: `${C.green}10`, border: `1.5px solid ${C.green}40`,
+                    borderRadius: 12, padding: "14px 16px", marginBottom: 16, textAlign: "left",
+                  }}>
+                    {[
+                      { label: "Platform",          val: NAMES[p] },
+                      { label: "Order Amount",      val: `${orderAmt} USDT` },
+                      { label: "Commission Earned", val: `+${commission} USDT`, green: true },
+                      { label: "Expected Income",   val: `${expected} USDT`,   bold: true  },
+                    ].map((row, i, arr) => (
+                      <div key={row.label} style={{
+                        display: "flex", justifyContent: "space-between",
+                        paddingBottom: i < arr.length - 1 ? 10 : 0,
+                        marginBottom:  i < arr.length - 1 ? 10 : 0,
+                        borderBottom:  i < arr.length - 1 ? `1px dashed ${C.green}40` : "none",
+                      }}>
+                        <span style={{ fontSize: 12, color: C.textMid }}>{row.label}</span>
+                        <span style={{
+                          fontSize: 13,
+                          fontWeight: (row as { bold?: boolean }).bold ? 700 : 600,
+                          color: (row as { green?: boolean }).green ? C.green : C.text,
+                        }}>{row.val}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Session counter pill */}
+                  <div style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    background: `${C.orange}15`, border: `1px solid ${C.orange}40`,
+                    borderRadius: 20, padding: "6px 14px", fontSize: 12, color: C.orange, fontWeight: 600,
+                  }}>
+                    <Clock size={13} />
+                    Session: {sessionCount + 1} / {SESSION_LIMIT} orders
+                  </div>
+
+                  <div style={{ fontSize: 11, color: C.textLight, marginTop: 14 }}>
+                    Returning to dashboard…
+                  </div>
+                </div>
+              )}
+
+              {/* Normal popup content (hidden while success is showing) */}
+              {!successVisible && (
+              <React.Fragment>
 
               {/* Product image */}
               <div style={{
@@ -696,6 +896,9 @@ function TaskDetailScreen({
                 fontSize: 15, fontWeight: 700, color: "#fff", cursor: "pointer",
                 boxShadow: `0 4px 16px rgba(245,161,0,0.35)`,
               }}>Submit Order</button>
+
+              </React.Fragment>
+              )}
             </div>
           </div>
         </>
