@@ -631,12 +631,17 @@ function TaskDetailScreen({
   const [popupVisible, setPopupVisible] = useState(false);
   const [comboDepositOpen, setComboDepositOpen] = useState(false);
 
-  // First login: limit 1 order. Subsequent: 25 orders, 4 combos
+  // Session 1: 1 order, no combos. Session 2+: 25 orders, 1 combo at position 13 (mid-point)
   const isFirstSession = loginCount === 1;
   const SESSION_LIMIT = isFirstSession ? 1 : 25;
+  const DEFAULT_SINGLE_COMBO = [13]; // position 13 of 25 for non-VIP sessions
 
-  // Which positions in the session are combo orders
-  const comboPositions = isVip && adminCombos.length > 0 ? adminCombos : COMBO_POSITIONS_DEFAULT;
+  // VIP accounts use admin-set positions; otherwise 1 combo at position 13 (or none for first session)
+  const comboPositions = isFirstSession
+    ? []
+    : isVip && adminCombos.length > 0
+      ? adminCombos
+      : DEFAULT_SINGLE_COMBO;
 
   const NAMES:   Record<string, string> = { amazon: "Amazon", alibaba: "Alibaba", aliexpress: "Aliexpress" };
   const RATES:   Record<string, number> = { amazon: 4,        alibaba: 8,         aliexpress: 12 };
@@ -672,11 +677,13 @@ function TaskDetailScreen({
     parseFloat(data.balance.replace(/,/g, "")) + parseFloat(expected)
   ).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  const [sessionCount,    setSessionCount]    = useState(0);
-  const [sessionLimitHit, setSessionLimitHit] = useState(false);
-  const [adminPending,    setAdminPending]    = useState(false);
-  const [successVisible,  setSuccessVisible]  = useState(false);
-  const [depositDone,     setDepositDone]     = useState(false);
+  const [sessionCount,      setSessionCount]      = useState(0);
+  const [sessionLimitHit,   setSessionLimitHit]   = useState(false);
+  const [adminPending,      setAdminPending]      = useState(false);
+  // Must get admin approval before starting ANY session (including first)
+  const [adminApproved,     setAdminApproved]     = useState(false);
+  const [successVisible,    setSuccessVisible]    = useState(false);
+  const [depositDone,       setDepositDone]       = useState(false);
 
   // Check if the NEXT order (sessionCount + 1) is a combo position
   const nextOrderNum = sessionCount + 1;
@@ -788,39 +795,54 @@ function TaskDetailScreen({
 
       <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px 68px" }}>
 
-        {/* First session notice */}
-        {isFirstSession && (
+        {/* Admin approval gate — shown until admin approves */}
+        {!adminApproved && !sessionLimitHit && (
           <div style={{
-            background: "#fff8e7", border: `1.5px solid ${C.orange}`, borderRadius: 10,
-            padding: "10px 14px", marginBottom: 10,
-            display: "flex", alignItems: "flex-start", gap: 10,
+            background: C.white, borderRadius: 10,
+            border: `1.5px solid ${adminPending ? "#f59e0b" : C.border}`,
+            overflow: "hidden", boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
+            marginBottom: 10,
           }}>
-            <AlertCircle size={16} color={C.orange} style={{ flexShrink: 0, marginTop: 1 }} />
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 3 }}>First-Time Session</div>
-              <div style={{ fontSize: 11, color: C.textMid, lineHeight: 1.5 }}>
-                New accounts receive <strong>1 order</strong> in their first session. From the 2nd session onward, you'll receive a full 25-order session including <strong>4 combo orders</strong> with higher profit.
+            <div style={{
+              padding: "12px 14px",
+              background: adminPending ? "linear-gradient(135deg,#fef3c7,#fde68a)" : "linear-gradient(135deg,#f0f9ff,#e0f2fe)",
+              borderBottom: `1px solid ${adminPending ? "#fbbf24" : "#bae6fd"}`,
+              display: "flex", alignItems: "center", gap: 10,
+            }}>
+              <div style={{ width: 34, height: 34, borderRadius: "50%", background: adminPending ? "#f59e0b" : C.wine, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                {adminPending ? <Clock size={16} color="#fff" /> : <AlertCircle size={16} color="#fff" />}
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>
+                  {adminPending ? "Approval Pending…" : "Admin Approval Required"}
+                </div>
+                <div style={{ fontSize: 10, color: C.textMid }}>
+                  {adminPending ? "Waiting for admin to grant session" : "Contact customer service to start your session"}
+                </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Combo order alert */}
-        {isNextCombo && !isFirstSession && !sessionLimitHit && (
-          <div style={{
-            background: "linear-gradient(135deg, #fdf4ff 0%, #f0fdf4 100%)",
-            border: `1.5px solid ${C.purple}`,
-            borderRadius: 10, padding: "10px 14px", marginBottom: 10,
-            display: "flex", alignItems: "flex-start", gap: 10,
-          }}>
-            <Zap size={16} color={C.purple} style={{ flexShrink: 0, marginTop: 1 }} />
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.purple, marginBottom: 2 }}>
-                Combo Order #{nextOrderNum} Ready!
-              </div>
-              <div style={{ fontSize: 11, color: C.textMid, lineHeight: 1.5 }}>
-                This is a <strong style={{ color: C.purple }}>Combo Order</strong> — make a deposit first to unlock it. Combo orders have <strong style={{ color: C.green }}>30% commission</strong> and much higher profit!
-              </div>
+            <div style={{ padding: "12px 14px" }}>
+              {adminPending ? (
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#fef3c7", border: "1px solid #fbbf24", borderRadius: 8, padding: "8px 16px", marginBottom: 10 }}>
+                    <Clock size={13} color="#d97706" />
+                    <span style={{ fontSize: 12, color: "#92400e", fontWeight: 600 }}>Request submitted — awaiting admin</span>
+                  </div>
+                  <div style={{ fontSize: 10, color: C.textLight, marginBottom: 8 }}>[ Admin panel — simulation only ]</div>
+                  <button onClick={() => { setAdminPending(false); setAdminApproved(true); }} style={{
+                    width: "100%", border: "none", borderRadius: 8, padding: "10px 0",
+                    background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`,
+                    color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                  }}>✓ Admin: Grant Approval</button>
+                </div>
+              ) : (
+                <button onClick={() => setAdminPending(true)} style={{
+                  width: "100%", border: "none", borderRadius: 8, padding: "12px 0",
+                  background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`,
+                  color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                  boxShadow: "0 4px 14px rgba(122,44,62,0.35)",
+                }}>Request Admin Approval</button>
+              )}
             </div>
           </div>
         )}
@@ -896,7 +918,7 @@ function TaskDetailScreen({
           </div>
         )}
 
-        {/* Grab button or limit panel */}
+        {/* Grab button or session-complete panel */}
         {sessionLimitHit ? (
           <div style={{
             background: C.white, borderRadius: 10,
@@ -905,23 +927,23 @@ function TaskDetailScreen({
           }}>
             <div style={{
               padding: "12px 14px",
-              background: adminPending ? "linear-gradient(135deg,#fef3c7,#fde68a)" : "linear-gradient(135deg,#fee2e2,#fecaca)",
-              borderBottom: `1px solid ${adminPending ? "#fbbf24" : "#fca5a5"}`,
+              background: adminPending ? "linear-gradient(135deg,#fef3c7,#fde68a)" : "linear-gradient(135deg,#f0fdf4,#dcfce7)",
+              borderBottom: `1px solid ${adminPending ? "#fbbf24" : "#86efac"}`,
               display: "flex", alignItems: "center", gap: 10,
             }}>
-              <div style={{ width: 34, height: 34, borderRadius: "50%", background: adminPending ? "#f59e0b" : C.red, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                {adminPending ? <Clock size={16} color="#fff" /> : <AlertCircle size={16} color="#fff" />}
+              <div style={{ width: 34, height: 34, borderRadius: "50%", background: adminPending ? "#f59e0b" : C.green, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                {adminPending ? <Clock size={16} color="#fff" /> : <CheckCircle2 size={16} color="#fff" />}
               </div>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{adminPending ? "Approval Pending…" : "Session Limit Reached"}</div>
-                <div style={{ fontSize: 10, color: C.textMid }}>{adminPending ? "Waiting for admin to grant next session" : `${SESSION_LIMIT} orders completed — admin approval required`}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{adminPending ? "Approval Pending…" : "25 Orders Completed!"}</div>
+                <div style={{ fontSize: 10, color: C.textMid }}>{adminPending ? "Waiting for admin to grant next session" : "Request admin approval to start the next session"}</div>
               </div>
             </div>
             <div style={{ padding: "12px 14px" }}>
               <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                 {[
-                  { label: "Orders Completed", val: `${SESSION_LIMIT}`, color: C.text },
-                  { label: "Session Earnings",  val: `${(sessionCount * parseFloat(commission)).toFixed(2)} USDT`, color: C.green },
+                  { label: "Orders Done",      val: `${SESSION_LIMIT}`,                                             color: C.text  },
+                  { label: "Session Earnings", val: `${(sessionCount * parseFloat(commission)).toFixed(2)} USDT`,   color: C.green },
                 ].map(s => (
                   <div key={s.label} style={{ flex: 1, background: C.bg, borderRadius: 8, padding: "7px 8px", textAlign: "center", border: `1px solid ${C.border}` }}>
                     <div style={{ fontSize: 9, color: C.textLight, marginBottom: 2 }}>{s.label}</div>
@@ -936,7 +958,7 @@ function TaskDetailScreen({
                     <span style={{ fontSize: 12, color: "#92400e", fontWeight: 600 }}>Request submitted — awaiting admin</span>
                   </div>
                   <div style={{ fontSize: 10, color: C.textLight, marginBottom: 6 }}>[ Admin panel — simulation only ]</div>
-                  <button onClick={() => { setAdminPending(false); setSessionLimitHit(false); setSessionCount(0); }} style={{
+                  <button onClick={() => { setAdminPending(false); setAdminApproved(true); setSessionLimitHit(false); setSessionCount(0); }} style={{
                     width: "100%", border: "none", borderRadius: 8, padding: "10px 0",
                     background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`,
                     color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer",
@@ -952,11 +974,11 @@ function TaskDetailScreen({
               )}
             </div>
           </div>
-        ) : (
+        ) : adminApproved ? (
           <>
             <button onClick={openPopup} style={{
               width: "100%",
-              background: isNextCombo && !isFirstSession
+              background: isNextCombo
                 ? `linear-gradient(135deg, ${C.purple} 0%, #7c3aed 100%)`
                 : `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
               border: "none", borderRadius: 8, padding: "14px 0",
@@ -964,17 +986,15 @@ function TaskDetailScreen({
               boxShadow: isNextCombo ? `0 4px 16px rgba(139,92,246,0.4)` : `0 4px 16px rgba(245,161,0,0.4)`,
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
             }}>
-              {isNextCombo && !isFirstSession ? <><Zap size={17} /> Grab Combo Order #{nextOrderNum}</> : "Grab the order immediately"}
+              {isNextCombo ? <><Zap size={17} /> Grab Combo Order #{nextOrderNum}</> : "Grab the order immediately"}
             </button>
             <div style={{ fontSize: 11, color: C.textLight, textAlign: "center", marginTop: 8 }}>
-              {isFirstSession
-                ? "First session: 1 order only. Deposit to unlock full sessions."
-                : isNextCombo
-                  ? "Combo order requires deposit first — much higher profit!"
-                  : "Ensure your account balance meets the minimum requirement."}
+              {isNextCombo
+                ? "Combo order requires deposit first — higher profit!"
+                : "Ensure your account balance meets the minimum requirement."}
             </div>
           </>
-        )}
+        ) : null}
       </div>
 
       {/* ── Combo Order Deposit Popup ── */}
@@ -1085,54 +1105,43 @@ function TaskDetailScreen({
               </div>
             </div>
 
-            <div style={{ overflowY: "auto", padding: "0 14px 20px", maxHeight: 460 }}>
+            {/* Compact popup body — fits in phone without scrolling */}
+            <div style={{ padding: "0 14px 14px" }}>
 
-              {successVisible && (
-                <div style={{ textAlign: "center", padding: "12px 0 6px" }}>
+              {successVisible ? (
+                /* ── Success state ── */
+                <div style={{ textAlign: "center", padding: "8px 0 4px" }}>
                   <div style={{
-                    width: 76, height: 76, borderRadius: "50%",
+                    width: 56, height: 56, borderRadius: "50%",
                     background: `linear-gradient(135deg, ${C.green} 0%, #16a34a 100%)`,
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    margin: "0 auto 12px",
-                    boxShadow: `0 0 0 12px ${C.green}22, 0 6px 24px ${C.green}55`,
+                    margin: "0 auto 8px",
+                    boxShadow: `0 0 0 8px ${C.green}22`,
                   }}>
-                    <CheckCircle2 size={40} color="#fff" />
+                    <CheckCircle2 size={30} color="#fff" />
                   </div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: C.text, marginBottom: 4 }}>Order Submitted!</div>
-                  <div style={{ fontSize: 12, color: C.textMid, marginBottom: 14 }}>Your order has been recorded successfully.</div>
-                  <div style={{
-                    background: `${C.green}10`, border: `1.5px solid ${C.green}40`,
-                    borderRadius: 10, padding: "12px 14px", marginBottom: 12, textAlign: "left",
-                  }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 2 }}>Order Submitted!</div>
+                  <div style={{ fontSize: 11, color: C.textMid, marginBottom: 10 }}>Recorded successfully.</div>
+                  <div style={{ background: `${C.green}10`, border: `1px solid ${C.green}40`, borderRadius: 8, padding: "8px 12px", marginBottom: 8, textAlign: "left" }}>
                     {[
-                      { label: "Platform",          val: NAMES[p] },
-                      { label: "Order Amount",      val: `${depositDone ? comboAmt : orderAmt} USDT` },
-                      { label: "Commission Earned", val: `+${depositDone ? comboComm : commission} USDT`, green: true },
-                      { label: "Expected Income",   val: `${depositDone ? comboExpected : expected} USDT`, bold: true },
+                      { label: "Amount",     val: `${depositDone ? comboAmt : orderAmt} USDT` },
+                      { label: "Commission", val: `+${depositDone ? comboComm : commission} USDT`, green: true },
+                      { label: "Income",     val: `${depositDone ? comboExpected : expected} USDT`, bold: true },
                     ].map((row, i, arr) => (
-                      <div key={row.label} style={{
-                        display: "flex", justifyContent: "space-between",
-                        paddingBottom: i < arr.length - 1 ? 8 : 0,
-                        marginBottom: i < arr.length - 1 ? 8 : 0,
-                        borderBottom: i < arr.length - 1 ? `1px dashed ${C.green}40` : "none",
-                      }}>
+                      <div key={row.label} style={{ display: "flex", justifyContent: "space-between", paddingBottom: i < arr.length - 1 ? 5 : 0, marginBottom: i < arr.length - 1 ? 5 : 0, borderBottom: i < arr.length - 1 ? `1px dashed ${C.green}40` : "none" }}>
                         <span style={{ fontSize: 11, color: C.textMid }}>{row.label}</span>
-                        <span style={{ fontSize: 12, fontWeight: (row as { bold?: boolean }).bold ? 700 : 600, color: (row as { green?: boolean }).green ? C.green : C.text }}>{row.val}</span>
+                        <span style={{ fontSize: 12, fontWeight: (row as {bold?:boolean}).bold ? 700 : 600, color: (row as {green?:boolean}).green ? C.green : C.text }}>{row.val}</span>
                       </div>
                     ))}
                   </div>
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: `${C.orange}15`, border: `1px solid ${C.orange}40`, borderRadius: 20, padding: "5px 12px", fontSize: 11, color: C.orange, fontWeight: 600 }}>
-                    <Clock size={12} /> Session: {sessionCount + 1} / {SESSION_LIMIT} orders
-                  </div>
-                  <div style={{ fontSize: 10, color: C.textLight, marginTop: 10 }}>Returning to dashboard…</div>
+                  <div style={{ fontSize: 10, color: C.textLight }}>Returning to dashboard…</div>
                 </div>
-              )}
-
-              {!successVisible && (
+              ) : (
+                /* ── Order details state ── */
                 <React.Fragment>
-                  {/* Product image */}
-                  <div style={{ borderRadius: 12, overflow: "hidden", background: `${accent}12`, border: `1.5px solid ${accent}30`, marginBottom: 12 }}>
-                    <div style={{ height: 110, overflow: "hidden", position: "relative" }}>
+                  {/* Product image — smaller */}
+                  <div style={{ borderRadius: 10, overflow: "hidden", background: `${accent}12`, border: `1.5px solid ${accent}30`, marginBottom: 8, position: "relative" }}>
+                    <div style={{ height: 80, overflow: "hidden", position: "relative" }}>
                       <img
                         src={depositDone ? PRODUCT_IMAGES.combo : PRODUCT_IMAGES[p]}
                         alt={product.name}
@@ -1143,98 +1152,46 @@ function TaskDetailScreen({
                           el.nextElementSibling && ((el.nextElementSibling as HTMLElement).style.display = "flex");
                         }}
                       />
-                      <div style={{
-                        display: "none", height: 110,
-                        alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 4,
-                        background: `${accent}15`,
-                      }}>
-                        <Package size={36} color={accent} />
-                        <span style={{ fontSize: 11, color: accent, fontWeight: 600, background: `${accent}20`, padding: "2px 10px", borderRadius: 10 }}>{NAMES[p]}</span>
+                      <div style={{ display: "none", height: 80, alignItems: "center", justifyContent: "center", background: `${accent}15` }}>
+                        <Package size={28} color={accent} />
                       </div>
                       {depositDone && (
-                        <div style={{
-                          position: "absolute", top: 8, right: 8,
-                          background: `linear-gradient(135deg, ${C.purple}, #7c3aed)`,
-                          borderRadius: 10, padding: "3px 8px",
-                          display: "flex", alignItems: "center", gap: 4,
-                        }}>
-                          <Zap size={10} color="#fff" />
-                          <span style={{ fontSize: 10, fontWeight: 700, color: "#fff" }}>COMBO</span>
+                        <div style={{ position: "absolute", top: 6, right: 6, background: `linear-gradient(135deg, ${C.purple}, #7c3aed)`, borderRadius: 8, padding: "2px 7px", display: "flex", alignItems: "center", gap: 3 }}>
+                          <Zap size={9} color="#fff" />
+                          <span style={{ fontSize: 9, fontWeight: 700, color: "#fff" }}>COMBO</span>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* Product info */}
-                  <div style={{ background: C.bg, borderRadius: 10, padding: "10px 12px", marginBottom: 10 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text, lineHeight: 1.4, marginBottom: 3 }}>
-                      {depositDone ? `Combo Bundle — ${NAMES[p]} Premium Selection` : product.name}
+                  {/* Product name + SKU compact */}
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.text, lineHeight: 1.3, marginBottom: 1 }}>
+                      {depositDone ? `Combo Bundle — ${NAMES[p]} Premium` : product.name}
                     </div>
-                    <div style={{ fontSize: 10, color: C.textLight, fontFamily: "monospace" }}>SKU: {depositDone ? `COMBO-${orderId.slice(-6)}` : product.sku}</div>
+                    <div style={{ fontSize: 9, color: C.textLight, fontFamily: "monospace" }}>SKU: {depositDone ? `COMBO-${orderId.slice(-6)}` : product.sku}</div>
                   </div>
 
-                  {/* Price row */}
-                  <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                  {/* Order figures — 3 cols */}
+                  <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
                     {[
-                      { label: "Unit Price", val: depositDone ? `${comboAmt} USDT` : `${product.unitPrice} USDT`, color: C.orange },
-                      { label: "Quantity",   val: depositDone ? "×1" : `×${product.qty}`,                         color: C.text   },
-                      { label: "Subtotal",   val: depositDone ? `${comboAmt} USDT` : `${orderAmt} USDT`,          color: C.green  },
+                      { label: "Amount",     val: `${depositDone ? comboAmt : orderAmt}`, color: C.orange },
+                      { label: "Comm.",      val: `+${depositDone ? comboComm : commission}`, color: C.green },
+                      { label: "Income",     val: `${depositDone ? comboExpected : expected}`, color: depositDone ? C.purple : C.text },
                     ].map(s => (
-                      <div key={s.label} style={{ flex: 1, background: C.white, borderRadius: 8, padding: "7px 5px", textAlign: "center", border: `1px solid ${C.border}` }}>
-                        <div style={{ fontSize: 9, color: C.textLight, marginBottom: 2 }}>{s.label}</div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: s.color }}>{s.val}</div>
+                      <div key={s.label} style={{ flex: 1, background: C.bg, borderRadius: 7, padding: "6px 4px", textAlign: "center", border: `1px solid ${C.border}` }}>
+                        <div style={{ fontSize: 9, color: C.textLight, marginBottom: 1 }}>{s.label}</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: s.color }}>{s.val}</div>
+                        <div style={{ fontSize: 8, color: C.textLight }}>USDT</div>
                       </div>
                     ))}
                   </div>
 
-                  {/* Commission summary */}
-                  <div style={{ background: C.white, borderRadius: 10, border: `1px solid ${C.border}`, overflow: "hidden", marginBottom: 10 }}>
-                    <div style={{ padding: "8px 12px", background: depositDone ? `${C.purple}0e` : `${C.orange}0e`, borderBottom: `1px solid ${C.border}` }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>Commission Summary</span>
-                    </div>
-                    {[
-                      { label: "Order ID",        val: orderId,                                   mono: true },
-                      { label: "Order amount",    val: `${depositDone ? comboAmt : orderAmt} USDT`, color: C.text },
-                      { label: "Comm. rate",      val: `${depositDone ? COMBO_RATE : rate}%`,       color: depositDone ? C.purple : C.orange },
-                      { label: "Commission",      val: `+${depositDone ? comboComm : commission} USDT`, color: C.green },
-                      { label: "Expected income", val: `${depositDone ? comboExpected : expected} USDT`, color: depositDone ? C.purple : C.orange, bold: true },
-                    ].map((row, i, arr) => (
-                      <div key={row.label} style={{
-                        display: "flex", alignItems: "center", justifyContent: "space-between",
-                        padding: "8px 12px",
-                        borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : "none",
-                      }}>
-                        <span style={{ fontSize: 12, color: C.textMid }}>{row.label}</span>
-                        <span style={{
-                          fontSize: 12, fontWeight: row.bold ? 700 : 500,
-                          color: row.color ?? C.text, fontFamily: row.mono ? "monospace" : "inherit",
-                        }}>{row.val}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Projected balance */}
-                  <div style={{
-                    background: `linear-gradient(135deg, ${C.wine}0f 0%, ${C.wineDark}08 100%)`,
-                    border: `1.5px solid ${C.wine}30`,
-                    borderRadius: 10, padding: "12px 14px", marginBottom: 14,
-                  }}>
-                    <div style={{ fontSize: 11, color: C.wine, fontWeight: 700, marginBottom: 6, display: "flex", alignItems: "center", gap: 5 }}>
-                      <TrendingUp size={13} /> Projected Balance After Completion
-                    </div>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 4 }}>
-                      <span style={{ fontSize: 20, fontWeight: 800, color: C.text }}>{projectedBalance}</span>
-                      <span style={{ fontSize: 11, color: C.textMid }}>USDT</span>
-                    </div>
-                    <div style={{ display: "flex", gap: 12, fontSize: 10 }}>
-                      <div>
-                        <span style={{ color: C.textLight }}>Current  </span>
-                        <span style={{ color: C.text, fontWeight: 600 }}>{data.balance} USDT</span>
-                      </div>
-                      <div>
-                        <span style={{ color: C.textLight }}>+ Income  </span>
-                        <span style={{ color: C.green, fontWeight: 600 }}>+{depositDone ? comboExpected : expected} USDT</span>
-                      </div>
+                  {/* Commission rate badge + Order ID */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                    <div style={{ fontSize: 10, color: C.textLight, fontFamily: "monospace" }}>ID: {orderId}</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: depositDone ? C.purple : C.orange, background: depositDone ? `${C.purple}15` : `${C.orange}15`, padding: "2px 8px", borderRadius: 8 }}>
+                      {depositDone ? COMBO_RATE : rate}% commission
                     </div>
                   </div>
 
@@ -1243,9 +1200,9 @@ function TaskDetailScreen({
                     background: depositDone
                       ? `linear-gradient(135deg, ${C.purple} 0%, #7c3aed 100%)`
                       : `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
-                    border: "none", borderRadius: 10, padding: "13px 0",
+                    border: "none", borderRadius: 10, padding: "12px 0",
                     fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer",
-                    boxShadow: depositDone ? `0 4px 16px rgba(139,92,246,0.35)` : `0 4px 16px rgba(245,161,0,0.35)`,
+                    boxShadow: depositDone ? `0 4px 14px rgba(139,92,246,0.35)` : `0 4px 14px rgba(245,161,0,0.35)`,
                   }}>
                     {depositDone ? "Submit Combo Order" : "Submit Order"}
                   </button>
