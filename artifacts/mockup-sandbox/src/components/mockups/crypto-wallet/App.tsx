@@ -614,6 +614,8 @@ function TaskDetailScreen({
   isVip,
   adminCombos,
   accountBalance,
+  onSessionComplete,
+  onNewSessionStart,
 }: {
   platform: string;
   onBack: () => void;
@@ -622,6 +624,8 @@ function TaskDetailScreen({
   isVip: boolean;
   adminCombos: number[];
   accountBalance: number;
+  onSessionComplete: () => void;
+  onNewSessionStart: () => void;
 }) {
   const currentTier    = getBalanceTier(accountBalance);
   const forcedPlatform = TIER_PLATFORM[currentTier];
@@ -719,7 +723,10 @@ function TaskDetailScreen({
       setDepositDone(false);
       const next = sessionCount + 1;
       setSessionCount(next);
-      if (next >= SESSION_LIMIT) setSessionLimitHit(true);
+      if (next >= SESSION_LIMIT) {
+        setSessionLimitHit(true);
+        onSessionComplete(); // unlock withdrawal
+      }
     }, delay);
   };
 
@@ -829,11 +836,16 @@ function TaskDetailScreen({
                     <span style={{ fontSize: 12, color: "#92400e", fontWeight: 600 }}>Request submitted — awaiting admin</span>
                   </div>
                   <div style={{ fontSize: 10, color: C.textLight, marginBottom: 8 }}>[ Admin panel — simulation only ]</div>
-                  <button onClick={() => { setAdminPending(false); setAdminApproved(true); }} style={{
+                  <button onClick={() => { setAdminPending(false); setAdminApproved(true); onNewSessionStart(); }} style={{
                     width: "100%", border: "none", borderRadius: 8, padding: "10px 0",
                     background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`,
                     color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer",
                   }}>✓ Admin: Grant Approval</button>
+                </div>
+              ) : accountBalance < 20 ? (
+                <div style={{ background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 8, padding: "10px 12px", textAlign: "center" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.red, marginBottom: 3 }}>Insufficient Balance</div>
+                  <div style={{ fontSize: 11, color: C.textMid }}>You need at least <strong>20 USDT</strong> to request admin approval.</div>
                 </div>
               ) : (
                 <button onClick={() => setAdminPending(true)} style={{
@@ -958,11 +970,16 @@ function TaskDetailScreen({
                     <span style={{ fontSize: 12, color: "#92400e", fontWeight: 600 }}>Request submitted — awaiting admin</span>
                   </div>
                   <div style={{ fontSize: 10, color: C.textLight, marginBottom: 6 }}>[ Admin panel — simulation only ]</div>
-                  <button onClick={() => { setAdminPending(false); setAdminApproved(true); setSessionLimitHit(false); setSessionCount(0); }} style={{
+                  <button onClick={() => { setAdminPending(false); setAdminApproved(true); setSessionLimitHit(false); setSessionCount(0); onNewSessionStart(); }} style={{
                     width: "100%", border: "none", borderRadius: 8, padding: "10px 0",
                     background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`,
                     color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer",
                   }}>✓ Admin: Grant Approval</button>
+                </div>
+              ) : accountBalance < 20 ? (
+                <div style={{ background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 8, padding: "10px 12px", textAlign: "center" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.red, marginBottom: 3 }}>Insufficient Balance</div>
+                  <div style={{ fontSize: 11, color: C.textMid }}>You need at least <strong>20 USDT</strong> to request admin approval.</div>
                 </div>
               ) : (
                 <button onClick={() => setAdminPending(true)} style={{
@@ -1747,8 +1764,9 @@ function DepositQRScreen({ onBack }: { onBack: () => void }) {
 // WITHDRAW SCREEN
 // ═══════════════════════════════════════════════════════════════════════════════
 const FEE_RATE = 0.15;
-function WithdrawScreen({ onBack, onAddWallet }: { onBack: () => void; onAddWallet: () => void }) {
+function WithdrawScreen({ onBack, onAddWallet, canWithdraw }: { onBack: () => void; onAddWallet: () => void; canWithdraw: boolean }) {
   const [showPwdPopup, setShowPwdPopup] = useState(true);
+  const [showTaskBlockPopup, setShowTaskBlockPopup] = useState(!canWithdraw);
   const [amount, setAmount] = useState("");
   const [fundPwd, setFundPwd] = useState("");
   const [showPwd, setShowPwd] = useState(false);
@@ -1815,7 +1833,32 @@ function WithdrawScreen({ onBack, onAddWallet }: { onBack: () => void; onAddWall
         </div>
         <button onClick={() => amount && fundPwd && setSuccess(true)} style={{ width: "100%", background: (amount && fundPwd) ? `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)` : "#ccc", border: "none", borderRadius: 8, padding: "13px 0", fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer" }}>Withdraw</button>
       </div>
-      {showPwdPopup && (
+      {/* Task incomplete block — shown if 25 orders not yet done */}
+      {showTaskBlockPopup && (
+        <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 110, padding: 24 }}>
+          <div style={{ background: C.white, borderRadius: 14, padding: 22, maxWidth: 290, width: "100%", textAlign: "center" }}>
+            <div style={{
+              width: 52, height: 52, borderRadius: "50%",
+              background: "linear-gradient(135deg,#fee2e2,#fecaca)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              margin: "0 auto 12px",
+            }}>
+              <AlertCircle size={26} color={C.red} />
+            </div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: C.text, marginBottom: 8 }}>Task Not Completed</div>
+            <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.6, marginBottom: 18 }}>
+              Your task is not completed. You can withdraw after submitting <strong>25 orders</strong>.
+            </div>
+            <button onClick={() => { setShowTaskBlockPopup(false); onBack(); }} style={{
+              width: "100%", background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`,
+              border: "none", borderRadius: 8, padding: "11px 0",
+              fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer",
+            }}>OK, Got It</button>
+          </div>
+        </div>
+      )}
+
+      {!showTaskBlockPopup && showPwdPopup && (
         <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 24 }}>
           <div style={{ background: C.white, borderRadius: 10, padding: 20, maxWidth: 280, width: "100%" }}>
             <div style={{ fontWeight: 700, fontSize: 15, color: C.text, marginBottom: 6 }}>Withdrawal password</div>
@@ -2416,6 +2459,7 @@ export default function App() {
   const [users,           setUsers]           = useState<MockUser[]>(INITIAL_USERS);
   const [accountBalance,  setAccountBalance]  = useState(50); // Start in Amazon tier
   const [tierPopup,       setTierPopup]       = useState<"alibaba" | "aliexpress" | null>(null);
+  const [canWithdraw,     setCanWithdraw]     = useState(false); // unlocks after 25 orders; resets each new session
 
   // Secret admin tap counter (tap logo 5 times to access admin)
   const [adminTaps, setAdminTaps]   = useState(0);
@@ -2486,7 +2530,7 @@ export default function App() {
   const renderContent = () => {
     if (subPage === "deposit")          return <DepositScreen   onBack={goBack} onQR={() => setSubPage("deposit-qr")} />;
     if (subPage === "deposit-qr")       return <DepositQRScreen  onBack={() => setSubPage("deposit")} />;
-    if (subPage === "withdraw")         return <WithdrawScreen   onBack={goBack} onAddWallet={() => setSubPage("add-wallet")} />;
+    if (subPage === "withdraw")         return <WithdrawScreen   onBack={goBack} onAddWallet={() => setSubPage("add-wallet")} canWithdraw={canWithdraw} />;
     if (subPage === "add-wallet")       return <AddWalletScreen  onBack={() => setSubPage("withdraw")} />;
     if (subPage === "teams")            return <TeamsScreen      onBack={goBack} />;
     if (subPage === "invite")           return <InviteScreen     onBack={goBack} />;
@@ -2512,6 +2556,8 @@ export default function App() {
         isVip={isVip}
         adminCombos={userCombos}
         accountBalance={accountBalance}
+        onSessionComplete={() => setCanWithdraw(true)}
+        onNewSessionStart={() => setCanWithdraw(false)}
       />
     );
 
