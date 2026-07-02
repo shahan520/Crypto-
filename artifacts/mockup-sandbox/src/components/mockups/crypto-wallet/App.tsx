@@ -289,17 +289,158 @@ function ServiceScreen() {
   );
 }
 
+// ─── Balance Tier Helpers ─────────────────────────────────────────────────────
+type BalanceTier = "none" | "amazon" | "alibaba" | "aliexpress";
+
+function getBalanceTier(balance: number): BalanceTier {
+  if (balance < 20)   return "none";
+  if (balance < 499)  return "amazon";
+  if (balance < 899)  return "alibaba";
+  return "aliexpress";
+}
+
+const TIER_PLATFORM: Record<BalanceTier, string> = {
+  none:       "amazon",
+  amazon:     "amazon",
+  alibaba:    "alibaba",
+  aliexpress: "aliexpress",
+};
+
+// ─── Tier Upgrade Popup ───────────────────────────────────────────────────────
+function TierUpgradePopup({
+  tier,
+  onClose,
+}: {
+  tier: "alibaba" | "aliexpress";
+  onClose: () => void;
+}) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setVisible(true), 20); return () => clearTimeout(t); }, []);
+  const handleClose = () => { setVisible(false); setTimeout(onClose, 260); };
+
+  const isAlibaba = tier === "alibaba";
+  const accentColor = isAlibaba ? "#FF6A00" : "#e62e04";
+  const bgGrad = isAlibaba
+    ? "linear-gradient(135deg, #FF6A00 0%, #e55a00 100%)"
+    : "linear-gradient(135deg, #e62e04 0%, #b71c1c 100%)";
+
+  return (
+    <>
+      <div
+        onClick={handleClose}
+        style={{
+          position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 300,
+          opacity: visible ? 1 : 0, transition: "opacity 260ms ease",
+        }}
+      />
+      <div style={{
+        position: "absolute", left: "4%", right: "4%", top: "50%",
+        transform: visible ? "translate(0,-50%) scale(1)" : "translate(0,-50%) scale(0.88)",
+        opacity: visible ? 1 : 0,
+        transition: "transform 280ms cubic-bezier(0.34,1.56,0.64,1), opacity 260ms ease",
+        zIndex: 301, background: C.white, borderRadius: 18,
+        overflow: "hidden", boxShadow: "0 12px 48px rgba(0,0,0,0.28)",
+      }}>
+        {/* Coloured header */}
+        <div style={{ background: bgGrad, padding: "22px 20px 18px", textAlign: "center" }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: "50%",
+            background: "rgba(255,255,255,0.2)", border: "3px solid rgba(255,255,255,0.5)",
+            margin: "0 auto 10px",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <TrendingUp size={28} color="#fff" />
+          </div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 4 }}>
+            Account Level Upgraded!
+          </div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.85)" }}>
+            Your balance has crossed the {isAlibaba ? "$499" : "$899"} threshold
+          </div>
+        </div>
+
+        <div style={{ padding: "16px 18px 20px" }}>
+          {/* New platform badge */}
+          <div style={{
+            background: `${accentColor}10`, border: `1.5px solid ${accentColor}40`,
+            borderRadius: 12, padding: "12px 14px", marginBottom: 14, textAlign: "center",
+          }}>
+            <div style={{ fontSize: 11, color: C.textLight, marginBottom: 6 }}>
+              You must now place orders exclusively from
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: accentColor, marginBottom: 4 }}>
+              {isAlibaba ? "Alibaba" : "AliExpress"}
+            </div>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#dcfce7", border: "1px solid #86efac", borderRadius: 20, padding: "4px 14px" }}>
+              <TrendingUp size={11} color={C.green} />
+              <span style={{ fontSize: 12, fontWeight: 700, color: C.green }}>
+                Commission: {isAlibaba ? "8%" : "12%"}
+              </span>
+            </div>
+          </div>
+
+          {/* Info rows */}
+          {[
+            {
+              label: "Balance range",
+              val: isAlibaba ? "$499 – $898" : "$899 and above",
+              color: C.text,
+            },
+            {
+              label: "Commission rate",
+              val: isAlibaba ? "8% per order" : "12% per order",
+              color: C.green,
+            },
+            {
+              label: "Previous platform",
+              val: isAlibaba ? "Amazon (locked)" : "Alibaba (locked)",
+              color: C.red,
+            },
+          ].map((row, i, arr) => (
+            <div key={row.label} style={{
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              paddingBottom: i < arr.length - 1 ? 10 : 0,
+              marginBottom: i < arr.length - 1 ? 10 : 14,
+              borderBottom: i < arr.length - 1 ? `1px dashed ${C.border}` : "none",
+            }}>
+              <span style={{ fontSize: 12, color: C.textMid }}>{row.label}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: row.color }}>{row.val}</span>
+            </div>
+          ))}
+
+          <button onClick={handleClose} style={{
+            width: "100%", border: "none", borderRadius: 10, padding: "13px 0",
+            background: bgGrad, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer",
+            boxShadow: `0 4px 14px ${accentColor}55`,
+          }}>
+            Got it — Go to {isAlibaba ? "Alibaba" : "AliExpress"}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // MENU SCREEN
 // ═══════════════════════════════════════════════════════════════════════════════
 type VipLevel = "all" | "1" | "2" | "3";
 
-function MenuScreen({ onTask }: { onTask: (platform: string) => void }) {
+function MenuScreen({
+  onTask,
+  accountBalance,
+}: {
+  onTask: (platform: string) => void;
+  accountBalance: number;
+}) {
   const [filter, setFilter] = useState<VipLevel>("all");
+  const currentTier = getBalanceTier(accountBalance);
+  const allowedPlatform = TIER_PLATFORM[currentTier];
+
   const platforms = [
-    { id: "amazon",     name: "Amazon",     iconColor: "#FF9900", vip: 1, range: "20 – 498 USDT",  commission: "4%"  },
-    { id: "alibaba",    name: "Alibaba",    iconColor: "#FF6A00", vip: 2, range: "499 – 899 USDT", commission: "8%"  },
-    { id: "aliexpress", name: "Aliexpress", iconColor: "#e74c3c", vip: 3, range: "≥ 899 USDT",     commission: "12%" },
+    { id: "amazon",     name: "Amazon",     vip: 1, range: "$20 – $498",  commission: "4%",  minBal: 20,  maxBal: 499  },
+    { id: "alibaba",    name: "Alibaba",    vip: 2, range: "$499 – $898", commission: "8%",  minBal: 499, maxBal: 899  },
+    { id: "aliexpress", name: "Aliexpress", vip: 3, range: "≥ $899",      commission: "12%", minBal: 899, maxBal: Infinity },
   ];
   const tabs: { key: VipLevel; label: string }[] = [
     { key: "all", label: "All" },
@@ -312,7 +453,15 @@ function MenuScreen({ onTask }: { onTask: (platform: string) => void }) {
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", paddingBottom: 68 }}>
       <div style={{ background: C.white, borderBottom: `1px solid ${C.border}`, padding: "10px 16px 0" }}>
-        <div style={{ fontWeight: 700, fontSize: 16, color: C.text, marginBottom: 10 }}>Menu</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <div style={{ fontWeight: 700, fontSize: 16, color: C.text }}>Menu</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 4, background: `${C.green}12`, border: `1px solid ${C.green}40`, borderRadius: 20, padding: "3px 10px" }}>
+            <TrendingUp size={10} color={C.green} />
+            <span style={{ fontSize: 10, fontWeight: 700, color: C.green }}>
+              Balance: ${accountBalance.toFixed(2)}
+            </span>
+          </div>
+        </div>
         <div style={{ display: "flex", gap: 4 }}>
           {tabs.map(t => (
             <button key={t.key} onClick={() => setFilter(t.key)} style={{
@@ -328,39 +477,123 @@ function MenuScreen({ onTask }: { onTask: (platform: string) => void }) {
         <div style={{ height: 1, background: C.border, marginTop: 8 }} />
       </div>
       <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
-        {filtered.map(p => (
-          <button key={p.id} onClick={() => onTask(p.id)} style={{
-            width: "100%", background: C.white, border: "none", borderRadius: 10,
-            padding: "12px 14px", marginBottom: 8, cursor: "pointer",
-            boxShadow: "0 1px 6px rgba(0,0,0,0.07)",
-            display: "flex", alignItems: "center", gap: 10, textAlign: "left",
+
+        {/* Balance notice */}
+        {currentTier === "none" && (
+          <div style={{
+            background: "#fef3e2", border: `1.5px solid ${C.orange}`, borderRadius: 10,
+            padding: "10px 14px", marginBottom: 10,
+            display: "flex", alignItems: "flex-start", gap: 10,
           }}>
-            <div style={{
-              width: 46, height: 46, borderRadius: 10,
-              background: C.orangeLight, border: `1px solid ${C.border}`,
-              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden",
-            }}>
-              <img src={PRODUCT_IMAGES[p.id]} alt={p.name}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                <span style={{ fontWeight: 700, fontSize: 14, color: C.text }}>{p.name}</span>
-                <VipBadge level={p.vip} />
-              </div>
-              <div style={{ fontSize: 11, color: C.textMid }}>Available balance: {p.range}</div>
-              <div style={{ fontSize: 11, color: C.textMid, marginTop: 1 }}>
-                Commissions:{" "}
-                <span style={{ color: C.red, fontWeight: 700, fontSize: 12, background: "#fee2e2", padding: "1px 5px", borderRadius: 4 }}>
-                  {p.commission}
-                </span>
+            <AlertCircle size={15} color={C.orange} style={{ flexShrink: 0, marginTop: 1 }} />
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 2 }}>Minimum balance required</div>
+              <div style={{ fontSize: 11, color: C.textMid, lineHeight: 1.5 }}>
+                You need at least <strong>$20</strong> in your account to start placing orders. Please make a deposit first.
               </div>
             </div>
-            <ChevronRight size={15} color={C.textLight} />
-          </button>
-        ))}
+          </div>
+        )}
+
+        {filtered.map(p => {
+          const isActive  = p.id === allowedPlatform && currentTier !== "none";
+          const isLocked  = !isActive;
+          const isUpcoming = !isActive && p.minBal > accountBalance;
+          const needed    = isUpcoming ? (p.minBal - accountBalance).toFixed(2) : null;
+
+          return (
+            <div
+              key={p.id}
+              onClick={() => isActive && onTask(p.id)}
+              style={{
+                width: "100%", background: isActive ? C.white : "#f9f9fb",
+                border: isActive ? `2px solid ${C.orange}` : `1.5px solid ${C.border}`,
+                borderRadius: 10, padding: "12px 14px", marginBottom: 8,
+                cursor: isActive ? "pointer" : "not-allowed",
+                boxShadow: isActive ? "0 2px 10px rgba(245,161,0,0.18)" : "none",
+                display: "flex", alignItems: "center", gap: 10,
+                opacity: isLocked ? 0.65 : 1,
+                position: "relative", overflow: "hidden",
+              }}
+            >
+              {/* Active glow stripe */}
+              {isActive && (
+                <div style={{
+                  position: "absolute", left: 0, top: 0, bottom: 0, width: 4,
+                  background: `linear-gradient(180deg, ${C.orange}, ${C.orangeDark})`,
+                  borderRadius: "2px 0 0 2px",
+                }} />
+              )}
+
+              <div style={{
+                width: 46, height: 46, borderRadius: 10,
+                background: isLocked ? "#f0f0f0" : C.orangeLight,
+                border: `1px solid ${C.border}`,
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden",
+              }}>
+                {isLocked ? (
+                  <Lock size={20} color={C.textLight} />
+                ) : (
+                  <img src={PRODUCT_IMAGES[p.id]} alt={p.name}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  />
+                )}
+              </div>
+
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: isLocked ? C.textLight : C.text }}>
+                    {p.name}
+                  </span>
+                  <VipBadge level={p.vip} />
+                  {isActive && (
+                    <span style={{
+                      fontSize: 9, fontWeight: 700, color: "#fff",
+                      background: `linear-gradient(135deg, ${C.green}, #16a34a)`,
+                      padding: "1px 6px", borderRadius: 10,
+                    }}>ACTIVE</span>
+                  )}
+                  {isLocked && p.id === "amazon" && accountBalance >= 499 && (
+                    <span style={{
+                      fontSize: 9, fontWeight: 700, color: C.red,
+                      background: "#fee2e2", padding: "1px 6px", borderRadius: 10,
+                    }}>LOCKED</span>
+                  )}
+                </div>
+                <div style={{ fontSize: 11, color: C.textMid, marginBottom: 2 }}>
+                  Balance range: {p.range}
+                </div>
+                <div style={{ fontSize: 11, color: C.textMid }}>
+                  Commission:{" "}
+                  <span style={{
+                    color: isActive ? C.green : C.textLight,
+                    fontWeight: 700, fontSize: 12,
+                    background: isActive ? "#dcfce7" : "#f4f5f7",
+                    padding: "1px 5px", borderRadius: 4,
+                  }}>
+                    {p.commission}
+                  </span>
+                </div>
+                {isUpcoming && needed && (
+                  <div style={{ fontSize: 10, color: C.blue, marginTop: 3, fontWeight: 600 }}>
+                    Deposit ${needed} more to unlock
+                  </div>
+                )}
+                {isLocked && !isUpcoming && (
+                  <div style={{ fontSize: 10, color: C.red, marginTop: 3, fontWeight: 600 }}>
+                    Exceeded balance range — use {allowedPlatform}
+                  </div>
+                )}
+              </div>
+
+              {isActive
+                ? <ChevronRight size={15} color={C.orange} />
+                : <Lock size={14} color={C.textLight} />
+              }
+            </div>
+          );
+        })}
         <div style={{ textAlign: "center", fontSize: 11, color: C.textLight, paddingTop: 2 }}>No more</div>
       </div>
     </div>
@@ -380,6 +613,7 @@ function TaskDetailScreen({
   loginCount,
   isVip,
   adminCombos,
+  accountBalance,
 }: {
   platform: string;
   onBack: () => void;
@@ -387,8 +621,12 @@ function TaskDetailScreen({
   loginCount: number;
   isVip: boolean;
   adminCombos: number[];
+  accountBalance: number;
 }) {
-  const [activePlatform, setActivePlatform] = useState(initialPlatform);
+  const currentTier    = getBalanceTier(accountBalance);
+  const forcedPlatform = TIER_PLATFORM[currentTier];
+  // Always use the tier-forced platform; ignore any passed-in platform if tier differs
+  const [activePlatform, setActivePlatform] = useState(forcedPlatform);
   const [popupOpen,    setPopupOpen]    = useState(false);
   const [popupVisible, setPopupVisible] = useState(false);
   const [comboDepositOpen, setComboDepositOpen] = useState(false);
@@ -517,21 +755,33 @@ function TaskDetailScreen({
           </div>
         </div>
 
-        {/* Platform tabs */}
+        {/* Platform tabs — locked to tier */}
         <div style={{ display: "flex", margin: "0 12px 0", background: "rgba(0,0,0,0.18)", borderRadius: 10, padding: 3 }}>
-          {(["amazon", "alibaba", "aliexpress"] as const).map(key => (
-            <button key={key} onClick={() => setActivePlatform(key)} style={{
-              flex: 1, border: "none", cursor: "pointer",
-              borderRadius: 8, padding: "7px 4px",
-              background: activePlatform === key ? "#fff" : "transparent",
-              color: activePlatform === key ? C.orange : "rgba(255,255,255,0.8)",
-              fontWeight: activePlatform === key ? 700 : 500,
-              fontSize: 11,
-              transition: "all 200ms ease",
-            }}>
-              {NAMES[key]}
-            </button>
-          ))}
+          {(["amazon", "alibaba", "aliexpress"] as const).map(key => {
+            const isAllowed = key === forcedPlatform;
+            return (
+              <button
+                key={key}
+                disabled={!isAllowed}
+                style={{
+                  flex: 1, border: "none",
+                  cursor: isAllowed ? "pointer" : "not-allowed",
+                  borderRadius: 8, padding: "7px 4px",
+                  background: activePlatform === key ? "#fff" : "transparent",
+                  color: isAllowed
+                    ? activePlatform === key ? C.orange : "rgba(255,255,255,0.9)"
+                    : "rgba(255,255,255,0.3)",
+                  fontWeight: activePlatform === key ? 700 : 500,
+                  fontSize: 11,
+                  transition: "all 200ms ease",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 3,
+                }}
+              >
+                {!isAllowed && <Lock size={9} />}
+                {NAMES[key]}
+              </button>
+            );
+          })}
         </div>
         <div style={{ height: 10 }} />
       </div>
@@ -2198,15 +2448,17 @@ const INITIAL_USERS: MockUser[] = [
 ];
 
 export default function App() {
-  const [loggedIn,      setLoggedIn]      = useState(false);
-  const [showRegister,  setShowRegister]  = useState(false);
-  const [tab,           setTab]           = useState<Tab>("home");
-  const [subPage,       setSubPage]       = useState<SubPage | null>(null);
-  const [taskPlatform,  setTaskPlatform]  = useState("amazon");
-  const [orders,        setOrders]        = useState<OrderRecord[]>(MOCK_ORDERS);
-  const [loginCount,    setLoginCount]    = useState(0);
-  const [isVip,         setIsVip]         = useState(false);
-  const [users,         setUsers]         = useState<MockUser[]>(INITIAL_USERS);
+  const [loggedIn,        setLoggedIn]        = useState(false);
+  const [showRegister,    setShowRegister]    = useState(false);
+  const [tab,             setTab]             = useState<Tab>("home");
+  const [subPage,         setSubPage]         = useState<SubPage | null>(null);
+  const [taskPlatform,    setTaskPlatform]    = useState("amazon");
+  const [orders,          setOrders]          = useState<OrderRecord[]>(MOCK_ORDERS);
+  const [loginCount,      setLoginCount]      = useState(0);
+  const [isVip,           setIsVip]           = useState(false);
+  const [users,           setUsers]           = useState<MockUser[]>(INITIAL_USERS);
+  const [accountBalance,  setAccountBalance]  = useState(50); // Start in Amazon tier
+  const [tierPopup,       setTierPopup]       = useState<"alibaba" | "aliexpress" | null>(null);
 
   // Secret admin tap counter (tap logo 5 times to access admin)
   const [adminTaps, setAdminTaps]   = useState(0);
@@ -2227,7 +2479,8 @@ export default function App() {
 
   const handleAddOrder = (platform: string, amount: string, commission: string, isCombo = false) => {
     const product = isCombo ? PLATFORM_PRODUCTS.combo : (PLATFORM_PRODUCTS[platform] ?? PLATFORM_PRODUCTS.amazon);
-    const expectedIncome = (parseFloat(amount) + parseFloat(commission)).toFixed(2);
+    const income = parseFloat(amount) + parseFloat(commission);
+    const expectedIncome = income.toFixed(2);
     const newOrder: OrderRecord = {
       id: `TR${Date.now()}`,
       platform: PLATFORM_NAMES[platform] ?? platform,
@@ -2241,6 +2494,18 @@ export default function App() {
       products: [{ ...product, unitPrice: amount }],
     };
     setOrders(prev => [newOrder, ...prev]);
+
+    // Update balance and check tier crossing
+    setAccountBalance(prev => {
+      const oldTier = getBalanceTier(prev);
+      const newBal  = prev + income;
+      const newTier = getBalanceTier(newBal);
+      if (oldTier !== newTier) {
+        if (newTier === "alibaba")    setTimeout(() => setTierPopup("alibaba"),    400);
+        if (newTier === "aliexpress") setTimeout(() => setTierPopup("aliexpress"), 400);
+      }
+      return newBal;
+    });
   };
 
   const handleSubmitIncomplete = (id: string) => {
@@ -2289,12 +2554,21 @@ export default function App() {
         loginCount={loginCount}
         isVip={isVip}
         adminCombos={userCombos}
+        accountBalance={accountBalance}
       />
     );
 
     if (tab === "home")    return <HomeScreen    onNavigate={goSub} />;
     if (tab === "service") return <ServiceScreen />;
-    if (tab === "menu")    return <MenuScreen    onTask={p => { setTaskPlatform(p); setSubPage("task"); }} />;
+    if (tab === "menu")    return (
+      <MenuScreen
+        accountBalance={accountBalance}
+        onTask={p => {
+          setTaskPlatform(p);
+          setSubPage("task");
+        }}
+      />
+    );
     if (tab === "record")  return <RecordScreen  orders={orders} onSubmitIncomplete={handleSubmitIncomplete} />;
     if (tab === "mine")    return <MineScreen    onNavigate={goSub} isVip={isVip} username={username} />;
     return null;
@@ -2378,6 +2652,14 @@ export default function App() {
             {renderContent()}
             {!subPage && <BottomNav tab={tab} onTab={handleTab} />}
           </div>
+        )}
+
+        {/* Tier Upgrade Popup — shown when balance crosses a threshold */}
+        {tierPopup && (
+          <TierUpgradePopup
+            tier={tierPopup}
+            onClose={() => setTierPopup(null)}
+          />
         )}
       </div>
     </div>
