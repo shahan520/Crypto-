@@ -1,2 +1,3 @@
 - [Crypto wallet mockup: multi-component file](crypto-wallet-mockup-structure.md) — App.tsx has many top-level `function XScreen`/`function X` components; don't assume the next `function` matches a naming pattern before locating a JSX return's true closing brace.
 - [Canvas iframe URLs: use path proxy, not port](canvas-iframe-proxy-urls.md) — this project routes artifacts via path prefixes on the shared domain; embedding `domain:<port>` directly breaks/times out.
+- [BASE_URL missing trailing slash](base-url-trailing-slash.md) — `import.meta.env.BASE_URL` can come back without a trailing slash depending on how `base`/`BASE_PATH` was set; `${BASE}file.png` silently 404s and swallows the failure via onError.

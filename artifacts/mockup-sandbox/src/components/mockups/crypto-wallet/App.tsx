@@ -46,7 +46,7 @@ const PRODUCT_IMAGES: Record<string, string> = {
   combo:      "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&q=80",
 };
 
-const BASE = import.meta.env.BASE_URL;
+const BASE = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
 
 // ─── Pentagon Flower Logo SVG ─────────────────────────────────────────────────
 function PentagonLogo({ size = 40, onTap }: { size?: number; onTap?: () => void }) {
