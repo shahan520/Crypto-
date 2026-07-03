@@ -2675,8 +2675,23 @@ export default function App() {
   // Secret admin tap counter (tap logo 5 times to access admin)
   const [adminTaps, setAdminTaps]   = useState(0);
   const [username,  setUsername]    = useState("Hanif8989");
-  const [avatarUrl, setAvatarUrl]   = useState<string | null>(null);
-  const [language,  setLanguage]    = useState("English");
+  const [avatarUrl, setAvatarUrl]   = useState<string | null>(() => {
+    try { return localStorage.getItem("wallet_avatarUrl"); } catch { return null; }
+  });
+  const [language,  setLanguage]    = useState(() => {
+    try { return localStorage.getItem("wallet_language") || "English"; } catch { return "English"; }
+  });
+
+  useEffect(() => {
+    try {
+      if (avatarUrl) localStorage.setItem("wallet_avatarUrl", avatarUrl);
+      else localStorage.removeItem("wallet_avatarUrl");
+    } catch { /* ignore storage errors */ }
+  }, [avatarUrl]);
+
+  useEffect(() => {
+    try { localStorage.setItem("wallet_language", language); } catch { /* ignore storage errors */ }
+  }, [language]);
 
   // Get current user's combos from admin panel
   const currentUser = users.find(u => u.username === username);
