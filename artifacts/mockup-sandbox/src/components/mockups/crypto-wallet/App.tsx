@@ -2035,18 +2035,37 @@ function ProfileScreen({
   onLogout: () => void;
 }) {
   const [showLangList, setShowLangList] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 2000);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => onAvatarChange(reader.result as string);
+    reader.onload = () => {
+      onAvatarChange(reader.result as string);
+      showToast("Profile photo updated");
+    };
     reader.readAsDataURL(file);
   };
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, position: "relative" }}>
       <BackHeader title="Profile" onBack={onBack} />
+      {toastMsg && (
+        <div style={{
+          position: "absolute", top: 54, left: "50%", transform: "translateX(-50%)",
+          background: "rgba(0,0,0,0.8)", color: "#fff", fontSize: 12.5, fontWeight: 500,
+          padding: "9px 16px", borderRadius: 8, zIndex: 50, whiteSpace: "nowrap",
+          display: "flex", alignItems: "center", gap: 6,
+        }}>
+          <Check size={14} color="#4ade80" /> {toastMsg}
+        </div>
+      )}
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 12px" }}>
 
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "10px 0 24px" }}>
@@ -2091,7 +2110,7 @@ function ProfileScreen({
               {LANGUAGES.map(lang => (
                 <div key={lang}>
                   <div style={{ height: 1, background: C.border, margin: "0 14px" }} />
-                  <button onClick={() => { onLanguageChange(lang); setShowLangList(false); }} style={{
+                  <button onClick={() => { onLanguageChange(lang); setShowLangList(false); showToast(`Language changed to ${lang}`); }} style={{
                     width: "100%", background: "none", border: "none", cursor: "pointer",
                     display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px 12px 39px",
                   }}>
