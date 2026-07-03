@@ -1914,17 +1914,39 @@ function AddWalletScreen({ onBack }: { onBack: () => void }) {
 }
 
 // ─── Teams Screen ─────────────────────────────────────────────────────────────
+type TeamMember = {
+  id: string;
+  username: string;
+  level: 1 | 2 | 3;
+  deposit: number;
+  joined: string;
+  invitedBy: string;
+};
+
+const MOCK_TEAM_MEMBERS: TeamMember[] = [
+  { id: "m1", username: "Karim_88",    level: 1, deposit: 250,  joined: "2026-05-12", invitedBy: "you" },
+  { id: "m2", username: "Rafiq_21",    level: 1, deposit: 500,  joined: "2026-05-20", invitedBy: "you" },
+  { id: "m3", username: "Sumon_77",    level: 1, deposit: 0,    joined: "2026-06-02", invitedBy: "you" },
+  { id: "m4", username: "Nasrin_09",   level: 2, deposit: 120,  joined: "2026-05-18", invitedBy: "m1" },
+  { id: "m5", username: "Jahid_55",    level: 2, deposit: 300,  joined: "2026-05-25", invitedBy: "m1" },
+  { id: "m6", username: "Mitu_43",     level: 2, deposit: 80,   joined: "2026-06-10", invitedBy: "m2" },
+  { id: "m7", username: "Rakib_16",    level: 3, deposit: 60,   joined: "2026-06-05", invitedBy: "m4" },
+  { id: "m8", username: "Shanta_30",   level: 3, deposit: 0,    joined: "2026-06-15", invitedBy: "m5" },
+];
+
 function TeamsScreen({ onBack }: { onBack: () => void }) {
-  const [level, setLevel] = useState(1);
+  const [level, setLevel] = useState<1 | 2 | 3>(1);
+  const membersAtLevel = MOCK_TEAM_MEMBERS.filter(m => m.level === level);
+  const totalDeposit = MOCK_TEAM_MEMBERS.reduce((sum, m) => sum + m.deposit, 0);
   const stats = [
     { label: "Agent Profit",      value: "0.00" },
-    { label: "Total recharge",    value: "0.00" },
+    { label: "Total recharge",    value: totalDeposit.toFixed(2) },
     { label: "Total withdraw",    value: "0.00" },
     { label: "Order commission",  value: "0.00" },
-    { label: "Newcomers",         value: "0"    },
+    { label: "Newcomers",         value: String(MOCK_TEAM_MEMBERS.length) },
     { label: "Activities number", value: "0"    },
-    { label: "Team amount",       value: "0.00" },
-    { label: "Team number",       value: "0"    },
+    { label: "Team amount",       value: totalDeposit.toFixed(2) },
+    { label: "Team number",       value: String(MOCK_TEAM_MEMBERS.length) },
   ];
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
@@ -1935,7 +1957,7 @@ function TeamsScreen({ onBack }: { onBack: () => void }) {
         </div>
         <div style={{ textAlign: "center", marginBottom: 12, padding: "0 20px" }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginBottom: 3 }}>Team amount</div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: "#fff" }}>0.00 <span style={{ fontSize: 12, fontWeight: 400 }}>USDT</span></div>
+          <div style={{ fontSize: 26, fontWeight: 800, color: "#fff" }}>{totalDeposit.toFixed(2)} <span style={{ fontSize: 12, fontWeight: 400 }}>USDT</span></div>
         </div>
         <div style={{ margin: "0 12px 0", background: "rgba(255,255,255,0.1)", borderRadius: 8 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
@@ -1951,15 +1973,42 @@ function TeamsScreen({ onBack }: { onBack: () => void }) {
       </div>
       <div style={{ background: C.white, borderBottom: `1px solid ${C.border}` }}>
         <div style={{ display: "flex" }}>
-          {[1, 2, 3].map(l => (
+          {([1, 2, 3] as const).map(l => (
             <button key={l} onClick={() => setLevel(l)} style={{ flex: 1, border: "none", background: "none", cursor: "pointer", padding: "10px 0", color: level === l ? C.orange : C.textMid, fontWeight: level === l ? 700 : 400, fontSize: 13, borderBottom: level === l ? `2px solid ${C.orange}` : "2px solid transparent" }}>Level {l}</button>
           ))}
         </div>
       </div>
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", color: C.textLight }}>
-        <Users size={44} color={C.border} style={{ marginBottom: 10 }} />
-        <div style={{ fontSize: 13 }}>No data</div>
-      </div>
+      {membersAtLevel.length === 0 ? (
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", color: C.textLight }}>
+          <Users size={44} color={C.border} style={{ marginBottom: 10 }} />
+          <div style={{ fontSize: 13 }}>No data</div>
+        </div>
+      ) : (
+        <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px 68px" }}>
+          <div style={{ fontSize: 11, color: C.textLight, margin: "2px 2px 8px" }}>
+            {level === 1 && "People who registered using your invite code"}
+            {level === 2 && "People invited by your Level 1 members' invite codes"}
+            {level === 3 && "People invited by your Level 2 members' invite codes"}
+          </div>
+          {membersAtLevel.map(m => (
+            <div key={m.id} style={{ background: C.white, borderRadius: 8, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: "50%", background: C.orangeLight, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <User size={18} color={C.orange} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{m.username}</div>
+                  <div style={{ fontSize: 10.5, color: C.textLight, marginTop: 2 }}>Joined {m.joined}</div>
+                </div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: m.deposit > 0 ? C.green : C.textLight }}>{m.deposit.toFixed(2)} USDT</div>
+                <div style={{ fontSize: 10.5, color: C.textLight, marginTop: 2 }}>Deposit</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
