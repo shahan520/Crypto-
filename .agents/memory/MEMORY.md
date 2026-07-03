@@ -1,1 +1,2 @@
 - [Crypto wallet mockup: multi-component file](crypto-wallet-mockup-structure.md) — App.tsx has many top-level `function XScreen`/`function X` components; don't assume the next `function` matches a naming pattern before locating a JSX return's true closing brace.
+- [Canvas iframe URLs: use path proxy, not port](canvas-iframe-proxy-urls.md) — this project routes artifacts via path prefixes on the shared domain; embedding `domain:<port>` directly breaks/times out.
