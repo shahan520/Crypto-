@@ -6,7 +6,7 @@ import {
   ArrowUpFromLine, Lock, Eye, EyeOff, Globe, LogOut,
   MessageCircle, HelpCircle, Bell, Plus, Shield,
   CheckCircle2, Clock, AlertCircle, TrendingUp, Star,
-  Settings, Crown, Zap, Package,
+  Settings, Crown, Zap, Package, Snowflake, KeyRound,
 } from "lucide-react";
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
@@ -614,8 +614,10 @@ function TaskDetailScreen({
   isVip,
   adminCombos,
   accountBalance,
+  sessionApproved,
+  frozenAmount,
   onSessionComplete,
-  onNewSessionStart,
+  onContactService,
 }: {
   platform: string;
   onBack: () => void;
@@ -624,8 +626,10 @@ function TaskDetailScreen({
   isVip: boolean;
   adminCombos: number[];
   accountBalance: number;
+  sessionApproved: boolean;
+  frozenAmount: number;
   onSessionComplete: () => void;
-  onNewSessionStart: () => void;
+  onContactService: () => void;
 }) {
   const currentTier    = getBalanceTier(accountBalance);
   const forcedPlatform = TIER_PLATFORM[currentTier];
@@ -653,12 +657,11 @@ function TaskDetailScreen({
 
   const PLATFORM_DATA: Record<string, {
     balance: string; todayEarnings: string; yesterdayEarnings: string;
-    todayOrders: string; cashGap: string; yesterdayBuyComm: string;
-    yesterdayTeamComm: string; frozen: string;
+    cashGap: string; yesterdayBuyComm: string; yesterdayTeamComm: string;
   }> = {
-    amazon: { balance: "1,248.60", todayEarnings: "42.80", yesterdayEarnings: "38.50", todayOrders: "8", cashGap: "120.00", yesterdayBuyComm: "24.30", yesterdayTeamComm: "14.20", frozen: "80.00" },
-    alibaba: { balance: "2,837.40", todayEarnings: "87.20", yesterdayEarnings: "76.40", todayOrders: "5", cashGap: "200.00", yesterdayBuyComm: "52.80", yesterdayTeamComm: "23.60", frozen: "150.00" },
-    aliexpress: { balance: "652.30", todayEarnings: "24.60", yesterdayEarnings: "18.90", todayOrders: "3", cashGap: "80.00", yesterdayBuyComm: "12.40", yesterdayTeamComm: "6.50", frozen: "40.00" },
+    amazon: { balance: "1,248.60", todayEarnings: "42.80", yesterdayEarnings: "38.50", cashGap: "120.00", yesterdayBuyComm: "24.30", yesterdayTeamComm: "14.20" },
+    alibaba: { balance: "2,837.40", todayEarnings: "87.20", yesterdayEarnings: "76.40", cashGap: "200.00", yesterdayBuyComm: "52.80", yesterdayTeamComm: "23.60" },
+    aliexpress: { balance: "652.30", todayEarnings: "24.60", yesterdayEarnings: "18.90", cashGap: "80.00", yesterdayBuyComm: "12.40", yesterdayTeamComm: "6.50" },
   };
 
   const PRODUCTS: Record<string, { name: string; sku: string; unitPrice: string; qty: number }> = {
@@ -683,11 +686,15 @@ function TaskDetailScreen({
 
   const [sessionCount,      setSessionCount]      = useState(0);
   const [sessionLimitHit,   setSessionLimitHit]   = useState(false);
-  const [adminPending,      setAdminPending]      = useState(false);
-  // Must get admin approval before starting ANY session (including first)
-  const [adminApproved,     setAdminApproved]     = useState(false);
   const [successVisible,    setSuccessVisible]    = useState(false);
   const [depositDone,       setDepositDone]       = useState(false);
+  // Blocking popup shown whenever the user has no permission to work yet
+  const [showPermissionPopup, setShowPermissionPopup] = useState(!sessionApproved);
+
+  // If permission is revoked/missing (e.g. right after finishing a session), re-show the block
+  useEffect(() => {
+    if (!sessionApproved) setShowPermissionPopup(true);
+  }, [sessionApproved]);
 
   // Check if the NEXT order (sessionCount + 1) is a combo position
   const nextOrderNum = sessionCount + 1;
@@ -731,12 +738,12 @@ function TaskDetailScreen({
   };
 
   const stats = [
-    { label: "Today's Orders",         value: data.todayOrders,       highlight: false },
-    { label: "Today's Commission",     value: data.todayEarnings,     highlight: true  },
-    { label: "Cash Gap Between Tasks", value: data.cashGap,           highlight: false },
-    { label: "Yesterday's Earnings",   value: data.yesterdayEarnings, highlight: false },
-    { label: "Yesterday's Team Comm.", value: data.yesterdayTeamComm, highlight: false },
-    { label: "Frozen in Accounts",     value: data.frozen,            highlight: false },
+    { label: "Today's Orders",         value: `${sessionCount}`,                highlight: false, noUnit: true },
+    { label: "Today's Commission",     value: data.todayEarnings,               highlight: true  },
+    { label: "Cash Gap Between Tasks", value: data.cashGap,                     highlight: false },
+    { label: "Yesterday's Earnings",   value: data.yesterdayEarnings,           highlight: false },
+    { label: "Yesterday's Team Comm.", value: data.yesterdayTeamComm,           highlight: false },
+    { label: "Frozen in Accounts",     value: frozenAmount.toFixed(2),          highlight: false, warn: frozenAmount > 0 },
   ];
 
   return (
@@ -802,58 +809,42 @@ function TaskDetailScreen({
 
       <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px 68px" }}>
 
-        {/* Admin approval gate — shown until admin approves */}
-        {!adminApproved && !sessionLimitHit && (
+        {/* Permission gate — shown until customer service/admin approves the session */}
+        {!sessionApproved && !sessionLimitHit && (
           <div style={{
             background: C.white, borderRadius: 10,
-            border: `1.5px solid ${adminPending ? "#f59e0b" : C.border}`,
+            border: `1.5px solid ${C.border}`,
             overflow: "hidden", boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
             marginBottom: 10,
           }}>
             <div style={{
               padding: "12px 14px",
-              background: adminPending ? "linear-gradient(135deg,#fef3c7,#fde68a)" : "linear-gradient(135deg,#f0f9ff,#e0f2fe)",
-              borderBottom: `1px solid ${adminPending ? "#fbbf24" : "#bae6fd"}`,
+              background: "linear-gradient(135deg,#f0f9ff,#e0f2fe)",
+              borderBottom: "1px solid #bae6fd",
               display: "flex", alignItems: "center", gap: 10,
             }}>
-              <div style={{ width: 34, height: 34, borderRadius: "50%", background: adminPending ? "#f59e0b" : C.wine, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                {adminPending ? <Clock size={16} color="#fff" /> : <AlertCircle size={16} color="#fff" />}
+              <div style={{ width: 34, height: 34, borderRadius: "50%", background: C.wine, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <AlertCircle size={16} color="#fff" />
               </div>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>
-                  {adminPending ? "Approval Pending…" : "Admin Approval Required"}
-                </div>
-                <div style={{ fontSize: 10, color: C.textMid }}>
-                  {adminPending ? "Waiting for admin to grant session" : "Contact customer service to start your session"}
-                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Permission Required</div>
+                <div style={{ fontSize: 10, color: C.textMid }}>Contact customer service to start your session</div>
               </div>
             </div>
             <div style={{ padding: "12px 14px" }}>
-              {adminPending ? (
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#fef3c7", border: "1px solid #fbbf24", borderRadius: 8, padding: "8px 16px", marginBottom: 10 }}>
-                    <Clock size={13} color="#d97706" />
-                    <span style={{ fontSize: 12, color: "#92400e", fontWeight: 600 }}>Request submitted — awaiting admin</span>
-                  </div>
-                  <div style={{ fontSize: 10, color: C.textLight, marginBottom: 8 }}>[ Admin panel — simulation only ]</div>
-                  <button onClick={() => { setAdminPending(false); setAdminApproved(true); onNewSessionStart(); }} style={{
-                    width: "100%", border: "none", borderRadius: 8, padding: "10px 0",
-                    background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`,
-                    color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer",
-                  }}>✓ Admin: Grant Approval</button>
-                </div>
-              ) : accountBalance < 20 ? (
+              {accountBalance < 20 ? (
                 <div style={{ background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 8, padding: "10px 12px", textAlign: "center" }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: C.red, marginBottom: 3 }}>Insufficient Balance</div>
-                  <div style={{ fontSize: 11, color: C.textMid }}>You need at least <strong>20 USDT</strong> to request admin approval.</div>
+                  <div style={{ fontSize: 11, color: C.textMid }}>You need at least <strong>20 USDT</strong> before customer service can approve your session.</div>
                 </div>
               ) : (
-                <button onClick={() => setAdminPending(true)} style={{
+                <button onClick={onContactService} style={{
                   width: "100%", border: "none", borderRadius: 8, padding: "12px 0",
                   background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`,
                   color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer",
                   boxShadow: "0 4px 14px rgba(122,44,62,0.35)",
-                }}>Request Admin Approval</button>
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                }}><Headphones size={14} /> Contact Customer Service</button>
               )}
             </div>
           </div>
@@ -875,9 +866,9 @@ function TaskDetailScreen({
                 borderRight: i % 2 === 0 ? `1px solid ${C.border}` : "none",
               }}>
                 <div style={{ fontSize: 9, color: C.textLight, marginBottom: 2 }}>{s.label}</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: s.highlight ? C.green : C.text }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: s.highlight ? C.green : (s as any).warn ? C.red : C.text }}>
                   {s.highlight ? "+" : ""}{s.value}
-                  {(s.highlight || i > 0) ? <span style={{ fontSize: 9, fontWeight: 400, color: C.textMid }}> USDT</span> : ""}
+                  {!(s as any).noUnit ? <span style={{ fontSize: 9, fontWeight: 400, color: C.textMid }}> USDT</span> : ""}
                 </div>
               </div>
             ))}
@@ -934,64 +925,34 @@ function TaskDetailScreen({
         {sessionLimitHit ? (
           <div style={{
             background: C.white, borderRadius: 10,
-            border: `1.5px solid ${adminPending ? "#f59e0b" : C.border}`,
+            border: `1.5px solid ${C.border}`,
             overflow: "hidden", boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
           }}>
             <div style={{
               padding: "12px 14px",
-              background: adminPending ? "linear-gradient(135deg,#fef3c7,#fde68a)" : "linear-gradient(135deg,#f0fdf4,#dcfce7)",
-              borderBottom: `1px solid ${adminPending ? "#fbbf24" : "#86efac"}`,
+              background: "linear-gradient(135deg,#f0fdf4,#dcfce7)",
+              borderBottom: "1px solid #86efac",
               display: "flex", alignItems: "center", gap: 10,
             }}>
-              <div style={{ width: 34, height: 34, borderRadius: "50%", background: adminPending ? "#f59e0b" : C.green, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                {adminPending ? <Clock size={16} color="#fff" /> : <CheckCircle2 size={16} color="#fff" />}
+              <div style={{ width: 34, height: 34, borderRadius: "50%", background: C.green, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <CheckCircle2 size={16} color="#fff" />
               </div>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{adminPending ? "Approval Pending…" : "25 Orders Completed!"}</div>
-                <div style={{ fontSize: 10, color: C.textMid }}>{adminPending ? "Waiting for admin to grant next session" : "Request admin approval to start the next session"}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>25 Orders Completed!</div>
+                <div style={{ fontSize: 10, color: C.textMid }}>Contact customer service for permission to start your next session</div>
               </div>
             </div>
             <div style={{ padding: "12px 14px" }}>
-              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                {[
-                  { label: "Orders Done",      val: `${SESSION_LIMIT}`,                                             color: C.text  },
-                  { label: "Session Earnings", val: `${(sessionCount * parseFloat(commission)).toFixed(2)} USDT`,   color: C.green },
-                ].map(s => (
-                  <div key={s.label} style={{ flex: 1, background: C.bg, borderRadius: 8, padding: "7px 8px", textAlign: "center", border: `1px solid ${C.border}` }}>
-                    <div style={{ fontSize: 9, color: C.textLight, marginBottom: 2 }}>{s.label}</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: s.color }}>{s.val}</div>
-                  </div>
-                ))}
-              </div>
-              {adminPending ? (
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#fef3c7", border: "1px solid #fbbf24", borderRadius: 8, padding: "8px 16px", marginBottom: 10 }}>
-                    <Clock size={13} color="#d97706" />
-                    <span style={{ fontSize: 12, color: "#92400e", fontWeight: 600 }}>Request submitted — awaiting admin</span>
-                  </div>
-                  <div style={{ fontSize: 10, color: C.textLight, marginBottom: 6 }}>[ Admin panel — simulation only ]</div>
-                  <button onClick={() => { setAdminPending(false); setAdminApproved(true); setSessionLimitHit(false); setSessionCount(0); onNewSessionStart(); }} style={{
-                    width: "100%", border: "none", borderRadius: 8, padding: "10px 0",
-                    background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`,
-                    color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer",
-                  }}>✓ Admin: Grant Approval</button>
-                </div>
-              ) : accountBalance < 20 ? (
-                <div style={{ background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 8, padding: "10px 12px", textAlign: "center" }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: C.red, marginBottom: 3 }}>Insufficient Balance</div>
-                  <div style={{ fontSize: 11, color: C.textMid }}>You need at least <strong>20 USDT</strong> to request admin approval.</div>
-                </div>
-              ) : (
-                <button onClick={() => setAdminPending(true)} style={{
-                  width: "100%", border: "none", borderRadius: 8, padding: "12px 0",
-                  background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`,
-                  color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer",
-                  boxShadow: "0 4px 14px rgba(122,44,62,0.35)",
-                }}>Request Admin Approval</button>
-              )}
+              <button onClick={onContactService} style={{
+                width: "100%", border: "none", borderRadius: 8, padding: "12px 0",
+                background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`,
+                color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                boxShadow: "0 4px 14px rgba(122,44,62,0.35)",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+              }}><Headphones size={14} /> Contact Customer Service</button>
             </div>
           </div>
-        ) : adminApproved ? (
+        ) : sessionApproved ? (
           <>
             <button onClick={openPopup} style={{
               width: "100%",
@@ -1225,6 +1186,39 @@ function TaskDetailScreen({
                   </button>
                 </React.Fragment>
               )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── Blocking permission popup — forces contact with customer service ── */}
+      {showPermissionPopup && (
+        <>
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 300 }} />
+          <div style={{
+            position: "absolute", left: 16, right: 16, top: "50%", transform: "translateY(-50%)",
+            zIndex: 301, background: C.white, borderRadius: 14, overflow: "hidden",
+            boxShadow: "0 12px 40px rgba(0,0,0,0.3)",
+          }}>
+            <div style={{ padding: "20px 18px 14px", textAlign: "center" }}>
+              <div style={{ width: 46, height: 46, borderRadius: "50%", background: `${C.red}18`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
+                <AlertCircle size={22} color={C.red} />
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 6 }}>Permission Required</div>
+              <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.5 }}>
+                You cannot start working without permission. Please contact customer service to have your session approved.
+              </div>
+            </div>
+            <div style={{ display: "flex", borderTop: `1px solid ${C.border}` }}>
+              <button onClick={() => setShowPermissionPopup(false)} style={{
+                flex: 1, border: "none", borderRight: `1px solid ${C.border}`, background: C.white,
+                padding: "13px 0", fontSize: 13, fontWeight: 600, color: C.textMid, cursor: "pointer",
+              }}>Close</button>
+              <button onClick={() => { setShowPermissionPopup(false); onContactService(); }} style={{
+                flex: 1, border: "none", background: C.white,
+                padding: "13px 0", fontSize: 13, fontWeight: 700, color: C.wine, cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+              }}><Headphones size={14} /> Contact Service</button>
             </div>
           </div>
         </>
@@ -1862,10 +1856,10 @@ function WithdrawScreen({ onBack, onAddWallet, canWithdraw }: { onBack: () => vo
         <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 24 }}>
           <div style={{ background: C.white, borderRadius: 10, padding: 20, maxWidth: 280, width: "100%" }}>
             <div style={{ fontWeight: 700, fontSize: 15, color: C.text, marginBottom: 6 }}>Withdrawal password</div>
-            <div style={{ fontSize: 12, color: C.textMid, marginBottom: 16 }}>Sorry! You have not set a withdrawal password. Please set it first to proceed.</div>
+            <div style={{ fontSize: 12, color: C.textMid, marginBottom: 16 }}>Sorry! You have not set a withdrawal password. Please contact customer service to have it set for you.</div>
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={() => { setShowPwdPopup(false); onBack(); }} style={{ flex: 1, border: `1.5px solid ${C.border}`, borderRadius: 7, padding: "9px 0", background: "none", cursor: "pointer", fontSize: 13, color: C.textMid }}>Cancel</button>
-              <button onClick={() => setShowPwdPopup(false)} style={{ flex: 1, background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`, border: "none", borderRadius: 7, padding: "9px 0", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#fff" }}>To set</button>
+              <button onClick={() => setShowPwdPopup(false)} style={{ flex: 1, background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`, border: "none", borderRadius: 7, padding: "9px 0", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}><Headphones size={13} /> Contact Service</button>
             </div>
           </div>
         </div>
@@ -2097,6 +2091,8 @@ interface MockUser {
   balance: string;
   isVip: boolean;
   combos: number[];
+  sessionApproved: boolean;
+  frozenAmount: number;
 }
 
 function AdminPanel({
@@ -2104,15 +2100,23 @@ function AdminPanel({
   users,
   onToggleVip,
   onSaveCombos,
+  onGrantApproval,
+  onSetFrozen,
+  onResetPassword,
 }: {
   onBack: () => void;
   users: MockUser[];
   onToggleVip: (id: string) => void;
   onSaveCombos: (id: string, combos: number[]) => void;
+  onGrantApproval: (id: string) => void;
+  onSetFrozen: (id: string, amount: number) => void;
+  onResetPassword: (id: string) => void;
 }) {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [comboInput, setComboInput] = useState("");
   const [saved, setSaved] = useState(false);
+  const [frozenInputs, setFrozenInputs] = useState<Record<string, string>>({});
+  const [resetDoneId, setResetDoneId] = useState<string | null>(null);
 
   const selectedUser = users.find(u => u.id === selectedUserId);
 
@@ -2176,12 +2180,57 @@ function AdminPanel({
               </div>
               {/* VIP Toggle */}
               <button onClick={() => onToggleVip(u.id)} style={{
-                border: "none", borderRadius: 20, padding: "5px 12px", cursor: "pointer", fontSize: 11, fontWeight: 700,
+                borderRadius: 20, padding: "5px 12px", cursor: "pointer", fontSize: 11, fontWeight: 700,
                 background: u.isVip ? `${C.gold}20` : `linear-gradient(135deg, ${C.gold}, #d97706)`,
                 color: u.isVip ? C.gold : "#fff",
                 border: u.isVip ? `1px solid ${C.gold}` : "none",
               } as React.CSSProperties}>
                 {u.isVip ? "Revoke VIP" : "Make VIP"}
+              </button>
+            </div>
+
+            {/* Session approval + account controls */}
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}`, display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <Clock size={12} color={u.sessionApproved ? C.green : C.textLight} />
+                  <span style={{ fontSize: 11, color: C.text }}>
+                    Session: {u.sessionApproved ? <span style={{ color: C.green, fontWeight: 700 }}>Approved</span> : <span style={{ color: C.textMid, fontWeight: 600 }}>Not approved</span>}
+                  </span>
+                </div>
+                <button onClick={() => onGrantApproval(u.id)} disabled={u.sessionApproved} style={{
+                  border: "none", borderRadius: 20, padding: "5px 12px", fontSize: 11, fontWeight: 700,
+                  cursor: u.sessionApproved ? "default" : "pointer",
+                  background: u.sessionApproved ? `${C.green}18` : `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`,
+                  color: u.sessionApproved ? C.green : "#fff",
+                }}>
+                  {u.sessionApproved ? "✓ Granted" : "Grant Session"}
+                </button>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <Snowflake size={12} color={u.frozenAmount > 0 ? C.red : C.textLight} style={{ flexShrink: 0 }} />
+                <span style={{ fontSize: 11, color: C.text, flexShrink: 0 }}>Freeze:</span>
+                <input
+                  value={frozenInputs[u.id] ?? String(u.frozenAmount)}
+                  onChange={e => setFrozenInputs(prev => ({ ...prev, [u.id]: e.target.value }))}
+                  placeholder="0.00"
+                  style={{ width: 64, border: `1.5px solid ${C.border}`, borderRadius: 6, padding: "4px 6px", fontSize: 11, color: C.text, outline: "none" }}
+                />
+                <button onClick={() => onSetFrozen(u.id, parseFloat(frozenInputs[u.id] ?? "0") || 0)} style={{
+                  border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 10, fontWeight: 700, cursor: "pointer",
+                  background: `${C.red}15`, color: C.red,
+                }}>Apply</button>
+                {u.frozenAmount > 0 && <span style={{ fontSize: 10, color: C.red, fontWeight: 600 }}>{u.frozenAmount.toFixed(2)} USDT frozen</span>}
+              </div>
+
+              <button onClick={() => { onResetPassword(u.id); setResetDoneId(u.id); setTimeout(() => setResetDoneId(v => v === u.id ? null : v), 2000); }} style={{
+                border: `1px solid ${C.border}`, borderRadius: 6, padding: "6px 0", fontSize: 11, fontWeight: 600, cursor: "pointer",
+                background: resetDoneId === u.id ? `${C.green}12` : "none",
+                color: resetDoneId === u.id ? C.green : C.textMid,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+              }}>
+                {resetDoneId === u.id ? <><CheckCircle2 size={12} /> Password reset sent</> : <><KeyRound size={12} /> Reset Password</>}
               </button>
             </div>
 
@@ -2252,6 +2301,7 @@ function LoginScreen({ onLogin, onRegister }: { onLogin: () => void; onRegister:
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, overflowY: "auto" }}>
       <div style={{ background: `linear-gradient(160deg, ${C.wine} 0%, ${C.wineDark} 55%, ${C.bg} 100%)`, padding: "30px 24px 48px", textAlign: "center", flexShrink: 0 }}>
@@ -2288,11 +2338,33 @@ function LoginScreen({ onLogin, onRegister }: { onLogin: () => void; onRegister:
           fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer",
           boxShadow: `0 4px 16px rgba(245,161,0,0.4)`, marginBottom: 14,
         }}>Login</button>
-        <div style={{ textAlign: "center", fontSize: 12, color: C.textMid }}>
+        <div style={{ textAlign: "center", fontSize: 12, color: C.textMid, marginBottom: 8 }}>
           Don't have an account?{" "}
           <span onClick={onRegister} style={{ color: C.orange, fontWeight: 600, cursor: "pointer" }}>Register</span>
         </div>
+        <div style={{ textAlign: "center", fontSize: 12, color: C.textMid }}>
+          <span onClick={() => setShowForgot(true)} style={{ color: C.wine, fontWeight: 600, cursor: "pointer" }}>Forgot password?</span>
+        </div>
       </div>
+
+      {showForgot && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, padding: 24 }}>
+          <div style={{ background: C.white, borderRadius: 12, padding: 20, maxWidth: 280, width: "100%", textAlign: "center" }}>
+            <div style={{ width: 42, height: 42, borderRadius: "50%", background: `${C.wine}18`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px" }}>
+              <Headphones size={20} color={C.wine} />
+            </div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: C.text, marginBottom: 6 }}>Forgot Password?</div>
+            <div style={{ fontSize: 12, color: C.textMid, marginBottom: 16, lineHeight: 1.5 }}>
+              For your account's security, passwords cannot be reset here. Please contact customer service for help with your account.
+            </div>
+            <button onClick={() => setShowForgot(false)} style={{
+              width: "100%", background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`,
+              border: "none", borderRadius: 8, padding: "10px 0",
+              fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer",
+            }}>OK, Got It</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2442,9 +2514,9 @@ function nowTimestamp() {
 
 // Initial mock users for admin panel
 const INITIAL_USERS: MockUser[] = [
-  { id: "u1", username: "Hanif8989",  balance: "1,248.60", isVip: false, combos: [] },
-  { id: "u2", username: "Sarah_456",  balance: "4,500.00", isVip: false, combos: [] },
-  { id: "u3", username: "Trader_Pro", balance: "12,000.00", isVip: false, combos: [] },
+  { id: "u1", username: "Hanif8989",  balance: "1,248.60", isVip: false, combos: [], sessionApproved: false, frozenAmount: 0 },
+  { id: "u2", username: "Sarah_456",  balance: "4,500.00", isVip: false, combos: [], sessionApproved: false, frozenAmount: 0 },
+  { id: "u3", username: "Trader_Pro", balance: "12,000.00", isVip: false, combos: [], sessionApproved: false, frozenAmount: 0 },
 ];
 
 export default function App() {
@@ -2460,6 +2532,8 @@ export default function App() {
   const [accountBalance,  setAccountBalance]  = useState(50); // Start in Amazon tier
   const [tierPopup,       setTierPopup]       = useState<"alibaba" | "aliexpress" | null>(null);
   const [canWithdraw,     setCanWithdraw]     = useState(false); // unlocks after 25 orders; resets each new session
+  const [sessionApproved, setSessionApproved] = useState(false); // admin/customer-service grants permission to work
+  const [frozenAmount,    setFrozenAmount]    = useState(0);     // default 0; set by admin if account is frozen
 
   // Secret admin tap counter (tap logo 5 times to access admin)
   const [adminTaps, setAdminTaps]   = useState(0);
@@ -2468,6 +2542,14 @@ export default function App() {
   // Get current user's combos from admin panel
   const currentUser = users.find(u => u.username === username);
   const userCombos  = currentUser?.combos ?? [];
+
+  // Keep local session/frozen state in sync with the current user's admin-set record
+  useEffect(() => {
+    if (currentUser) {
+      setSessionApproved(currentUser.sessionApproved);
+      setFrozenAmount(currentUser.frozenAmount);
+    }
+  }, [currentUser?.sessionApproved, currentUser?.frozenAmount]);
 
   const goSub  = (page: SubPage) => setSubPage(page);
   const goBack = () => setSubPage(null);
@@ -2527,6 +2609,30 @@ export default function App() {
     setUsers(prev => prev.map(u => u.id === id ? { ...u, combos } : u));
   };
 
+  // Admin/customer-service grants permission for the user to start their next 25-order session
+  const handleGrantApproval = (id: string) => {
+    setUsers(prev => prev.map(u => u.id === id ? { ...u, sessionApproved: true } : u));
+  };
+
+  // Admin freezes/unfreezes funds on a user's account
+  const handleSetFrozen = (id: string, amount: number) => {
+    setUsers(prev => prev.map(u => u.id === id ? { ...u, frozenAmount: amount } : u));
+  };
+
+  // Admin-only password reset (simulation — no self-service reset exists for users)
+  const handleResetPassword = (_id: string) => {
+    // Simulated: in a real backend this would trigger a temp password / reset email
+  };
+
+  // Called once the user finishes their 25th order — unlock withdrawal, and require a
+  // fresh admin/customer-service approval before the next session can begin
+  const handleSessionComplete = () => {
+    setCanWithdraw(true);
+    if (currentUser) {
+      setUsers(prev => prev.map(u => u.id === currentUser.id ? { ...u, sessionApproved: false } : u));
+    }
+  };
+
   const renderContent = () => {
     if (subPage === "deposit")          return <DepositScreen   onBack={goBack} onQR={() => setSubPage("deposit-qr")} />;
     if (subPage === "deposit-qr")       return <DepositQRScreen  onBack={() => setSubPage("deposit")} />;
@@ -2545,6 +2651,9 @@ export default function App() {
         users={users}
         onToggleVip={handleToggleVip}
         onSaveCombos={handleSaveCombos}
+        onGrantApproval={handleGrantApproval}
+        onSetFrozen={handleSetFrozen}
+        onResetPassword={handleResetPassword}
       />
     );
     if (subPage === "task")             return (
@@ -2556,8 +2665,10 @@ export default function App() {
         isVip={isVip}
         adminCombos={userCombos}
         accountBalance={accountBalance}
-        onSessionComplete={() => setCanWithdraw(true)}
-        onNewSessionStart={() => setCanWithdraw(false)}
+        sessionApproved={sessionApproved}
+        frozenAmount={frozenAmount}
+        onSessionComplete={handleSessionComplete}
+        onContactService={() => { setSubPage(null); setTab("service"); }}
       />
     );
 
