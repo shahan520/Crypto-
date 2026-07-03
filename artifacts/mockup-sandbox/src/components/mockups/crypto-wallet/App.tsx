@@ -1345,31 +1345,31 @@ function OrderDetailsPopup({ order, onClose }: { order: OrderRecord; onClose: ()
         transition: "transform 280ms cubic-bezier(0.32,0.72,0,1)",
         boxShadow: "0 -4px 32px rgba(0,0,0,0.18)", overflow: "hidden",
       }}>
-        <div style={{ padding: "10px 18px 0", flexShrink: 0 }}>
+        <div style={{ padding: "8px 16px 0", flexShrink: 0 }}>
           <Pill />
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 16, fontWeight: 700, color: C.text }}>Order Details</span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: C.text }}>Order Details</span>
               {order.isCombo && (
-                <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: `linear-gradient(135deg, ${C.purple}, #7c3aed)`, padding: "2px 7px", borderRadius: 10, display: "inline-flex", alignItems: "center", gap: 3 }}>
-                  <Zap size={9} /> COMBO
+                <span style={{ fontSize: 9, fontWeight: 700, color: "#fff", background: `linear-gradient(135deg, ${C.purple}, #7c3aed)`, padding: "2px 6px", borderRadius: 10, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                  <Zap size={8} /> COMBO
                 </span>
               )}
             </div>
-            <button onClick={handleClose} style={{ border: "none", background: "#f4f5f7", cursor: "pointer", width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <X size={14} color={C.textMid} />
+            <button onClick={handleClose} style={{ border: "none", background: "#f4f5f7", cursor: "pointer", width: 26, height: 26, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <X size={13} color={C.textMid} />
             </button>
           </div>
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "0 14px 20px" }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "0 14px 14px" }}>
           {/* Product image */}
           <div style={{
-            borderRadius: 12, overflow: "hidden",
+            borderRadius: 10, overflow: "hidden",
             background: `linear-gradient(135deg, ${product.accentColor}22 0%, ${product.accentColor}11 100%)`,
-            border: `1.5px solid ${product.accentColor}33`, marginBottom: 10,
+            border: `1.5px solid ${product.accentColor}33`, marginBottom: 8,
           }}>
-            <div style={{ height: 160, overflow: "hidden", position: "relative" }}>
+            <div style={{ height: 100, overflow: "hidden", position: "relative" }}>
               <img
                 src={product.imageUrl ?? PRODUCT_IMAGES[order.platform.toLowerCase()] ?? PRODUCT_IMAGES.combo}
                 alt={product.name}
@@ -1421,35 +1421,35 @@ function OrderDetailsPopup({ order, onClose }: { order: OrderRecord; onClose: ()
           </div>
 
           {/* Product info */}
-          <div style={{ background: C.bg, borderRadius: 10, padding: "10px 12px", marginBottom: 10 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.text, lineHeight: 1.4, marginBottom: 8 }}>{product.name}</div>
-            <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ background: C.bg, borderRadius: 9, padding: "8px 10px", marginBottom: 8 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.text, lineHeight: 1.35, marginBottom: 6 }}>{product.name}</div>
+            <div style={{ display: "flex", gap: 6 }}>
               {[
                 { label: "Unit Price", val: `${product.unitPrice} USDT`, color: C.orange },
                 { label: "Quantity",   val: `×${product.qty}`,           color: C.text   },
                 { label: "Subtotal",   val: `${(parseFloat(product.unitPrice) * product.qty).toFixed(2)} USDT`, color: C.green },
               ].map(s => (
-                <div key={s.label} style={{ flex: 1, background: C.white, borderRadius: 7, padding: "7px 8px", textAlign: "center", border: `1px solid ${C.border}` }}>
-                  <div style={{ fontSize: 9, color: C.textLight, marginBottom: 2 }}>{s.label}</div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: s.color }}>{s.val}</div>
+                <div key={s.label} style={{ flex: 1, background: C.white, borderRadius: 6, padding: "5px 6px", textAlign: "center", border: `1px solid ${C.border}` }}>
+                  <div style={{ fontSize: 8, color: C.textLight, marginBottom: 1 }}>{s.label}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: s.color }}>{s.val}</div>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Order summary */}
-          <div style={{ background: C.white, borderRadius: 10, border: `1px solid ${C.border}`, overflow: "hidden", marginBottom: 14 }}>
-            <div style={{ padding: "8px 12px", background: `linear-gradient(135deg, ${C.wine}08 0%, ${C.wine}04 100%)`, borderBottom: `1px solid ${C.border}` }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>Order Summary</span>
+          <div style={{ background: C.white, borderRadius: 9, border: `1px solid ${C.border}`, overflow: "hidden", marginBottom: 10 }}>
+            <div style={{ padding: "6px 10px", background: `linear-gradient(135deg, ${C.wine}08 0%, ${C.wine}04 100%)`, borderBottom: `1px solid ${C.border}` }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: C.text }}>Order Summary</span>
             </div>
             {rows.map((row, i) => (
-              <div key={row.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", borderBottom: i < rows.length - 1 ? `1px solid ${C.border}` : "none" }}>
-                <span style={{ fontSize: 12, color: C.textMid, flexShrink: 0 }}>{row.label}</span>
+              <div key={row.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px", borderBottom: i < rows.length - 1 ? `1px solid ${C.border}` : "none" }}>
+                <span style={{ fontSize: 11, color: C.textMid, flexShrink: 0 }}>{row.label}</span>
                 {row.chip ? (
                   <StatusChip status={row.val as OrderStatus} isCombo={order.isCombo} />
                 ) : (
                   <span style={{
-                    fontSize: 12, fontWeight: row.bold || row.orange || row.green ? 700 : 400,
+                    fontSize: 11, fontWeight: row.bold || row.orange || row.green ? 700 : 400,
                     color: row.orange ? C.orange : row.green ? C.green : C.text,
                     fontFamily: row.mono ? "monospace" : "inherit",
                     maxWidth: "58%", textAlign: "right", wordBreak: "break-all",
@@ -1462,8 +1462,8 @@ function OrderDetailsPopup({ order, onClose }: { order: OrderRecord; onClose: ()
           <button onClick={handleClose} style={{
             width: "100%",
             background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
-            border: "none", borderRadius: 10, padding: "13px 0",
-            fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer",
+            border: "none", borderRadius: 9, padding: "10px 0",
+            fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer",
             boxShadow: `0 4px 16px rgba(245,161,0,0.35)`,
           }}>Close</button>
         </div>
