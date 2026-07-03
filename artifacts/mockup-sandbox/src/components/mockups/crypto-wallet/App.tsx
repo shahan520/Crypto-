@@ -6,7 +6,7 @@ import {
   ArrowUpFromLine, Lock, Eye, EyeOff, Globe, LogOut,
   MessageCircle, HelpCircle, Bell, Plus, Shield,
   CheckCircle2, Clock, AlertCircle, TrendingUp, Star,
-  Settings, Crown, Zap, Package, Snowflake, KeyRound,
+  Settings, Crown, Zap, Package, Snowflake, KeyRound, Camera,
 } from "lucide-react";
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
@@ -36,7 +36,8 @@ type SubPage =
   | "withdraw" | "add-wallet"
   | "teams" | "invite" | "wallet-mgmt"
   | "profile" | "deposit-records" | "withdraw-records"
-  | "setting" | "task" | "admin";
+  | "setting" | "task" | "admin"
+  | "platform-profile" | "platform-rules" | "platform-cooperation" | "platform-instructions";
 
 // Product images (real URLs)
 const PRODUCT_IMAGES: Record<string, string> = {
@@ -171,10 +172,10 @@ function HomeScreen({ onNavigate }: { onNavigate: (sub: SubPage) => void }) {
     { label: "Invitation", icon: <Mail             size={20} color={C.orange} />, page: "invite"   as SubPage },
   ];
   const platformCards = [
-    { title: "Platform profile",    desc: "About our platform",     img: `${BASE}a1.png`, color: "#e8f4fd" },
-    { title: "Platform rules",      desc: "Policies & rules",       img: `${BASE}a2.png`, color: "#fef3e2" },
-    { title: "Win-win cooperation", desc: "Partner with us",        img: `${BASE}a3.png`, color: "#f0fdf4" },
-    { title: "Instructions for use",desc: "How to get started",     img: `${BASE}a4.png`, color: "#fdf4ff" },
+    { title: "Platform profile",    desc: "About our platform",     img: `${BASE}a1.png`, color: "#e8f4fd", page: "platform-profile"      as SubPage },
+    { title: "Platform rules",      desc: "Policies & rules",       img: `${BASE}a2.png`, color: "#fef3e2", page: "platform-rules"        as SubPage },
+    { title: "Win-win cooperation", desc: "Partner with us",        img: `${BASE}a3.png`, color: "#f0fdf4", page: "platform-cooperation"  as SubPage },
+    { title: "Instructions for use",desc: "How to get started",     img: `${BASE}a4.png`, color: "#fdf4ff", page: "platform-instructions" as SubPage },
   ];
 
   return (
@@ -220,7 +221,7 @@ function HomeScreen({ onNavigate }: { onNavigate: (sub: SubPage) => void }) {
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           {platformCards.map(card => (
-            <div key={card.title} style={{
+            <div key={card.title} onClick={() => onNavigate(card.page)} style={{
               borderRadius: 10, overflow: "hidden", background: C.white,
               boxShadow: "0 1px 6px rgba(0,0,0,0.07)", cursor: "pointer",
             }}>
@@ -1577,7 +1578,7 @@ function RecordScreen({ orders, onSubmitIncomplete }: { orders: OrderRecord[]; o
 // ═══════════════════════════════════════════════════════════════════════════════
 // MINE SCREEN
 // ═══════════════════════════════════════════════════════════════════════════════
-function MineScreen({ onNavigate, isVip, username }: { onNavigate: (sub: SubPage) => void; isVip: boolean; username: string }) {
+function MineScreen({ onNavigate, isVip, username, avatarUrl }: { onNavigate: (sub: SubPage) => void; isVip: boolean; username: string; avatarUrl: string | null }) {
   const quickActions = [
     { label: "Teams",            icon: <Users       size={20} color={C.orange} />, bg: "#fff8e7", page: "teams"         as SubPage },
     { label: "Record",           icon: <FileText    size={20} color={C.green}  />, bg: "#f0fdf4", page: "deposit-records" as SubPage },
@@ -1598,8 +1599,11 @@ function MineScreen({ onNavigate, isVip, username }: { onNavigate: (sub: SubPage
         padding: "18px 20px 28px",
         display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
       }}>
-        <div style={{ width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.15)", border: "3px solid rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <PentagonLogo size={44} />
+        <div onClick={() => onNavigate("profile")} style={{ width: 60, height: 60, borderRadius: "50%", overflow: "hidden", background: "rgba(255,255,255,0.15)", border: "3px solid rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          {avatarUrl
+            ? <img src={avatarUrl} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            : <PentagonLogo size={44} />
+          }
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontWeight: 700, fontSize: 15, color: "#fff" }}>{username}</span>
@@ -2018,25 +2022,158 @@ function WalletMgmtScreen({ onBack, onAdd }: { onBack: () => void; onAdd: () => 
 }
 
 // ─── Profile Screen ───────────────────────────────────────────────────────────
-function ProfileScreen({ onBack }: { onBack: () => void }) {
+const LANGUAGES = ["English", "বাংলা", "中文", "Hindi", "Español"];
+
+function ProfileScreen({
+  onBack, avatarUrl, onAvatarChange, language, onLanguageChange, onLogout,
+}: {
+  onBack: () => void;
+  avatarUrl: string | null;
+  onAvatarChange: (url: string) => void;
+  language: string;
+  onLanguageChange: (lang: string) => void;
+  onLogout: () => void;
+}) {
+  const [showLangList, setShowLangList] = useState(false);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => onAvatarChange(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
       <BackHeader title="Profile" onBack={onBack} />
-      <div style={{ flex: 1, overflowY: "auto" }}>
-        <div style={{ background: C.white, borderRadius: 8, margin: "10px 12px", overflow: "hidden" }}>
-          {[
-            { label: "Nickname",  val: "Hanif8989" },
-            { label: "Username",  val: "hanif8989" },
-            { label: "Phone",     val: "—"         },
-            { label: "Email",     val: "—"         },
-          ].map((item, i) => (
-            <div key={item.label}>
-              {i > 0 && <div style={{ height: 1, background: C.border, margin: "0 14px" }} />}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px" }}>
-                <span style={{ fontSize: 13, color: C.textMid }}>{item.label}</span>
-                <span style={{ fontSize: 13, color: C.text, fontWeight: 500 }}>{item.val}</span>
-              </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "16px 12px" }}>
+
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "10px 0 24px" }}>
+          <label style={{ position: "relative", cursor: "pointer" }}>
+            <div style={{
+              width: 84, height: 84, borderRadius: "50%", overflow: "hidden",
+              background: C.orangeLight, border: `2px solid ${C.border}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              {avatarUrl
+                ? <img src={avatarUrl} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                : <PentagonLogo size={54} />
+              }
             </div>
+            <div style={{
+              position: "absolute", bottom: 0, right: 0,
+              width: 28, height: 28, borderRadius: "50%",
+              background: C.orange, border: `2px solid ${C.white}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <Camera size={14} color="#fff" />
+            </div>
+            <input type="file" accept="image/*" onChange={handleFileChange} style={{ display: "none" }} />
+          </label>
+          <div style={{ fontSize: 12, color: C.textLight, marginTop: 8 }}>Tap the photo to change it</div>
+        </div>
+
+        <div style={{ background: C.white, borderRadius: 8, overflow: "hidden" }}>
+          <button onClick={() => setShowLangList(v => !v)} style={{
+            width: "100%", background: "none", border: "none", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 14px",
+          }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13, color: C.text }}>
+              <Globe size={16} color={C.textMid} /> Language
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: C.textMid }}>
+              {language} <ChevronRight size={14} style={{ transform: showLangList ? "rotate(90deg)" : "none" }} />
+            </span>
+          </button>
+          {showLangList && (
+            <div>
+              {LANGUAGES.map(lang => (
+                <div key={lang}>
+                  <div style={{ height: 1, background: C.border, margin: "0 14px" }} />
+                  <button onClick={() => { onLanguageChange(lang); setShowLangList(false); }} style={{
+                    width: "100%", background: "none", border: "none", cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px 12px 39px",
+                  }}>
+                    <span style={{ fontSize: 13, color: lang === language ? C.orange : C.text, fontWeight: lang === language ? 600 : 400 }}>{lang}</span>
+                    {lang === language && <Check size={14} color={C.orange} />}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <button onClick={onLogout} style={{
+          width: "100%", marginTop: 16,
+          background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`,
+          border: "none", borderRadius: 8, padding: "13px 0",
+          fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+        }}>
+          <LogOut size={16} /> Log out
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Platform Detail Screen ───────────────────────────────────────────────────
+const PLATFORM_DETAILS: Record<string, { title: string; img: string; paragraphs: string[] }> = {
+  "platform-profile": {
+    title: "Platform profile",
+    img: `${BASE}a1.png`,
+    paragraphs: [
+      "MALL is an intelligent cloud global order matching center that connects everyday users with major e-commerce platforms such as Amazon, Alibaba and AliExpress.",
+      "Our system automatically matches available orders to registered members based on their account balance and membership level, allowing members to earn a commission for every order they help complete.",
+      "Built on a secure cloud infrastructure, MALL processes thousands of order-matching requests every day, ensuring fast, transparent and reliable transactions for every member on the platform.",
+    ],
+  },
+  "platform-rules": {
+    title: "Platform rules",
+    img: `${BASE}a2.png`,
+    paragraphs: [
+      "About recharge: the platform will change the recharge address regularly for security reasons. Please always confirm the current deposit address in the app before making any transfer, and never reuse an old address.",
+      "Minimum recharge amount is 10 USDT, and deposits are usually confirmed within 1 to 2 minutes after the transfer is received on the blockchain.",
+      "About withdrawal: withdrawal requests are processed once a valid e-wallet address has been bound to the account. A withdrawal password must be set before any withdrawal can be submitted.",
+      "Any attempt to abuse the matching system, use multiple accounts to exploit bonuses, or submit fraudulent orders will result in the account being frozen pending review.",
+    ],
+  },
+  "platform-cooperation": {
+    title: "Win-win cooperation",
+    img: `${BASE}a3.png`,
+    paragraphs: [
+      "At MALL, we carry out win-win cooperation for all users. Merchants gain faster order fulfillment and increased sales, while our members earn a steady commission for every order they help match and complete.",
+      "As members complete more orders and their account balance grows, they can be upgraded to higher VIP levels, unlocking access to higher-value orders and better commission rates.",
+      "We believe sustainable growth comes from fair value exchange — the more our merchant partners succeed, the more our members earn, and the stronger the whole platform becomes.",
+    ],
+  },
+  "platform-instructions": {
+    title: "Instructions for use",
+    img: `${BASE}a4.png`,
+    paragraphs: [
+      "To celebrate the MALL membership surpassing new milestones, we've put together this quick guide to help you get started.",
+      "1. Register an account and recharge your wallet using USDT (TRC-20) to activate order matching.",
+      "2. Go to the Menu tab to view available platforms and tasks that match your current balance and VIP level.",
+      "3. Tap 'Grab the order' to receive a matched order, then submit it to earn your commission automatically.",
+      "4. Track your earnings and history anytime from the Record tab, and withdraw your balance once your withdrawal password is set.",
+    ],
+  },
+};
+
+function PlatformDetailScreen({ page, onBack }: { page: string; onBack: () => void }) {
+  const detail = PLATFORM_DETAILS[page];
+  if (!detail) return null;
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+      <BackHeader title={detail.title} onBack={onBack} />
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        <div style={{ height: 160, overflow: "hidden" }}>
+          <img src={detail.img} alt={detail.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        </div>
+        <div style={{ background: C.white, margin: "-14px 12px 0", borderRadius: 10, padding: "16px 14px", boxShadow: "0 2px 10px rgba(0,0,0,0.06)" }}>
+          {detail.paragraphs.map((p, i) => (
+            <p key={i} style={{ fontSize: 13, lineHeight: 1.6, color: C.text, margin: i === 0 ? "0 0 12px" : "0 0 12px" }}>{p}</p>
           ))}
         </div>
       </div>
@@ -2538,6 +2675,8 @@ export default function App() {
   // Secret admin tap counter (tap logo 5 times to access admin)
   const [adminTaps, setAdminTaps]   = useState(0);
   const [username,  setUsername]    = useState("Hanif8989");
+  const [avatarUrl, setAvatarUrl]   = useState<string | null>(null);
+  const [language,  setLanguage]    = useState("English");
 
   // Get current user's combos from admin panel
   const currentUser = users.find(u => u.username === username);
@@ -2641,7 +2780,9 @@ export default function App() {
     if (subPage === "teams")            return <TeamsScreen      onBack={goBack} />;
     if (subPage === "invite")           return <InviteScreen     onBack={goBack} />;
     if (subPage === "wallet-mgmt")      return <WalletMgmtScreen onBack={goBack} onAdd={() => setSubPage("add-wallet")} />;
-    if (subPage === "profile")          return <ProfileScreen    onBack={goBack} />;
+    if (subPage === "profile")          return <ProfileScreen    onBack={goBack} avatarUrl={avatarUrl} onAvatarChange={setAvatarUrl} language={language} onLanguageChange={setLanguage} onLogout={() => setLoggedIn(false)} />;
+    if (subPage === "platform-profile" || subPage === "platform-rules" || subPage === "platform-cooperation" || subPage === "platform-instructions")
+      return <PlatformDetailScreen page={subPage} onBack={goBack} />;
     if (subPage === "deposit-records")  return <SimpleRecordsScreen title="Deposit Records"    onBack={goBack} />;
     if (subPage === "withdraw-records") return <SimpleRecordsScreen title="Withdrawal Records" onBack={goBack} />;
     if (subPage === "setting")          return <SettingScreen    onBack={goBack} onLogout={() => setLoggedIn(false)} />;
@@ -2684,7 +2825,7 @@ export default function App() {
       />
     );
     if (tab === "record")  return <RecordScreen  orders={orders} onSubmitIncomplete={handleSubmitIncomplete} />;
-    if (tab === "mine")    return <MineScreen    onNavigate={goSub} isVip={isVip} username={username} />;
+    if (tab === "mine")    return <MineScreen    onNavigate={goSub} isVip={isVip} username={username} avatarUrl={avatarUrl} />;
     return null;
   };
 
