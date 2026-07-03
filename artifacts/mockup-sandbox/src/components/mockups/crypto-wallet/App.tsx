@@ -2071,7 +2071,13 @@ function WalletMgmtScreen({ onBack, onAdd }: { onBack: () => void; onAdd: () => 
 }
 
 // ─── Profile Screen ───────────────────────────────────────────────────────────
-const LANGUAGES = ["English", "বাংলা", "中文", "Hindi", "Español"];
+const LANGUAGES = [
+  "English", "বাংলা", "中文", "Hindi", "Español",
+  "العربية", "Français", "Português", "Русский", "日本語",
+  "한국어", "Bahasa Indonesia", "Türkçe", "Việt Nam", "Deutsch",
+  "Italiano", "اردو", "ไทย", "Melayu", "Filipino",
+  "Kiswahili",
+];
 
 function ProfileScreen({
   onBack, avatarUrl, onAvatarChange, language, onLanguageChange, onLogout,
