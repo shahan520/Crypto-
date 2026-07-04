@@ -1762,13 +1762,80 @@ function DepositQRScreen({ onBack }: { onBack: () => void }) {
 // WITHDRAW SCREEN
 // ═══════════════════════════════════════════════════════════════════════════════
 const FEE_RATE = 0.15;
-function WithdrawScreen({ onBack, onAddWallet, canWithdraw }: { onBack: () => void; onAddWallet: () => void; canWithdraw: boolean }) {
-  const [showPwdPopup, setShowPwdPopup] = useState(true);
-  const [showTaskBlockPopup, setShowTaskBlockPopup] = useState(!canWithdraw);
+function WithdrawScreen({
+  onBack, onAddWallet, canWithdraw, fundPwdSet, onFundPwdSet, eWalletAdded,
+}: {
+  onBack: () => void;
+  onAddWallet: () => void;
+  canWithdraw: boolean;
+  fundPwdSet: boolean;
+  onFundPwdSet: () => void;
+  eWalletAdded: boolean;
+}) {
+  const [showTaskBlockPopup, setShowTaskBlockPopup] = useState(false);
+  const [newPwd, setNewPwd] = useState("");
+  const [confirmPwd, setConfirmPwd] = useState("");
+  const [pwdError, setPwdError] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
   const [amount, setAmount] = useState("");
   const [fundPwd, setFundPwd] = useState("");
-  const [showPwd, setShowPwd] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  // Step 1: must set a withdrawal (fund) password before anything else
+  if (!fundPwdSet) {
+    const handleSetPassword = () => {
+      if (newPwd.length < 6) { setPwdError("Password must be at least 6 digits."); return; }
+      if (newPwd !== confirmPwd) { setPwdError("Passwords do not match."); return; }
+      setPwdError("");
+      onFundPwdSet();
+    };
+    return (
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+        <BackHeader title="Set Withdrawal Password" onBack={onBack} />
+        <div style={{ flex: 1, overflowY: "auto", padding: "16px 14px" }}>
+          <div style={{ fontSize: 12, color: C.textMid, marginBottom: 16, lineHeight: 1.6 }}>
+            For your account's security, please set a withdrawal password before making any withdrawal.
+          </div>
+          <div style={{ background: C.white, borderRadius: 8, padding: "12px 14px", marginBottom: 10 }}>
+            <div style={{ fontSize: 11, color: C.textLight, marginBottom: 6 }}>New withdrawal password</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 7, border: `1.5px solid ${C.border}`, borderRadius: 7, padding: "8px 10px" }}>
+              <Lock size={14} color={C.textLight} />
+              <input value={newPwd} onChange={e => setNewPwd(e.target.value)} placeholder="Enter a password (min 6 digits)" type={showPwd ? "text" : "password"} style={{ flex: 1, border: "none", outline: "none", fontSize: 13, color: C.text, background: "transparent" }} />
+              <button onClick={() => setShowPwd(v => !v)} style={{ border: "none", background: "none", cursor: "pointer" }}>
+                {showPwd ? <EyeOff size={14} color={C.textLight} /> : <Eye size={14} color={C.textLight} />}
+              </button>
+            </div>
+          </div>
+          <div style={{ background: C.white, borderRadius: 8, padding: "12px 14px", marginBottom: 10 }}>
+            <div style={{ fontSize: 11, color: C.textLight, marginBottom: 6 }}>Confirm password</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 7, border: `1.5px solid ${C.border}`, borderRadius: 7, padding: "8px 10px" }}>
+              <Lock size={14} color={C.textLight} />
+              <input value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} placeholder="Re-enter password" type={showPwd ? "text" : "password"} style={{ flex: 1, border: "none", outline: "none", fontSize: 13, color: C.text, background: "transparent" }} />
+            </div>
+          </div>
+          {pwdError && <div style={{ fontSize: 11.5, color: C.red, marginBottom: 10 }}>{pwdError}</div>}
+          <button onClick={handleSetPassword} style={{ width: "100%", background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`, border: "none", borderRadius: 8, padding: "13px 0", fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer" }}>Confirm</button>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 2: must bind an e-wallet before continuing to the withdrawal form
+  if (!eWalletAdded) {
+    return (
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+        <BackHeader title="Withdrawal" onBack={onBack} />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }}>
+          <div style={{ width: 60, height: 60, borderRadius: "50%", background: C.orangeLight, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+            <Package size={28} color={C.orange} />
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 8 }}>Set up your e-wallet</div>
+          <div style={{ fontSize: 12, color: C.textMid, marginBottom: 20, lineHeight: 1.6 }}>Please bind an electronic wallet address before you can request a withdrawal.</div>
+          <button onClick={onAddWallet} style={{ width: "100%", background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`, border: "none", borderRadius: 8, padding: "13px 0", fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer" }}>+ Add e-wallet</button>
+        </div>
+      </div>
+    );
+  }
 
   if (success) return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
@@ -1785,6 +1852,12 @@ function WithdrawScreen({ onBack, onAddWallet, canWithdraw }: { onBack: () => vo
   const fee     = amount ? (parseFloat(amount) * FEE_RATE).toFixed(2) : "0.00";
   const receive = amount ? (parseFloat(amount) * (1 - FEE_RATE)).toFixed(2) : "0.00";
 
+  const handleWithdrawClick = () => {
+    if (!amount || !fundPwd) return;
+    if (!canWithdraw) { setShowTaskBlockPopup(true); return; }
+    setSuccess(true);
+  };
+
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, position: "relative" }}>
       <BackHeader title="Withdrawal" onBack={onBack} />
@@ -1793,11 +1866,9 @@ function WithdrawScreen({ onBack, onAddWallet, canWithdraw }: { onBack: () => vo
           <div style={{ display: "flex", gap: 7, marginBottom: 12 }}>
             <div style={{ padding: "5px 14px", background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`, borderRadius: 20, fontSize: 12, color: "#fff", fontWeight: 600 }}>Virtual currency</div>
           </div>
-          <button onClick={onAddWallet} style={{ width: "100%", border: `1.5px dashed ${C.border}`, borderRadius: 7, padding: "10px 0", background: "none", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-            <Plus size={14} color={C.orange} />
-            <span style={{ color: C.orange }}>+ Add e-wallet</span>
-          </button>
-          <div style={{ textAlign: "center", marginTop: 8, fontSize: 11, color: C.textLight }}>Please bind an electronic wallet for withdrawal</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 2px", fontSize: 12, color: C.textMid }}>
+            <CheckCircle2 size={14} color={C.green} /> E-wallet bound
+          </div>
         </div>
         <div style={{ background: C.white, borderRadius: 8, marginBottom: 8, padding: "12px 14px" }}>
           <div style={{ fontSize: 11, color: C.textLight, marginBottom: 6 }}>Withdrawal amount</div>
@@ -1820,18 +1891,18 @@ function WithdrawScreen({ onBack, onAddWallet, canWithdraw }: { onBack: () => vo
           )}
         </div>
         <div style={{ background: C.white, borderRadius: 8, marginBottom: 10, padding: "12px 14px" }}>
-          <div style={{ fontSize: 11, color: C.textLight, marginBottom: 6 }}>Fund password</div>
+          <div style={{ fontSize: 11, color: C.textLight, marginBottom: 6 }}>Withdrawal password</div>
           <div style={{ display: "flex", alignItems: "center", gap: 7, border: `1.5px solid ${C.border}`, borderRadius: 7, padding: "8px 10px" }}>
             <Lock size={14} color={C.textLight} />
-            <input value={fundPwd} onChange={e => setFundPwd(e.target.value)} placeholder="Enter fund password" type={showPwd ? "text" : "password"} style={{ flex: 1, border: "none", outline: "none", fontSize: 13, color: C.text, background: "transparent" }} />
+            <input value={fundPwd} onChange={e => setFundPwd(e.target.value)} placeholder="Enter withdrawal password" type={showPwd ? "text" : "password"} style={{ flex: 1, border: "none", outline: "none", fontSize: 13, color: C.text, background: "transparent" }} />
             <button onClick={() => setShowPwd(v => !v)} style={{ border: "none", background: "none", cursor: "pointer" }}>
               {showPwd ? <EyeOff size={14} color={C.textLight} /> : <Eye size={14} color={C.textLight} />}
             </button>
           </div>
         </div>
-        <button onClick={() => amount && fundPwd && setSuccess(true)} style={{ width: "100%", background: (amount && fundPwd) ? `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)` : "#ccc", border: "none", borderRadius: 8, padding: "13px 0", fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer" }}>Withdraw</button>
+        <button onClick={handleWithdrawClick} style={{ width: "100%", background: (amount && fundPwd) ? `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)` : "#ccc", border: "none", borderRadius: 8, padding: "13px 0", fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer" }}>Withdraw</button>
       </div>
-      {/* Task incomplete block — shown if 25 orders not yet done */}
+      {/* Task incomplete block — only shown when the user actually tries to submit a withdrawal before finishing 25 orders */}
       {showTaskBlockPopup && (
         <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 110, padding: 24 }}>
           <div style={{ background: C.white, borderRadius: 14, padding: 22, maxWidth: 290, width: "100%", textAlign: "center" }}>
@@ -1845,7 +1916,7 @@ function WithdrawScreen({ onBack, onAddWallet, canWithdraw }: { onBack: () => vo
             </div>
             <div style={{ fontWeight: 700, fontSize: 15, color: C.text, marginBottom: 8 }}>Task Not Completed</div>
             <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.6, marginBottom: 18 }}>
-              Your task is not completed. You can withdraw after submitting <strong>25 orders</strong>.
+              Please complete <strong>25 tasks</strong> first, then withdraw.
             </div>
             <button onClick={() => { setShowTaskBlockPopup(false); onBack(); }} style={{
               width: "100%", background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`,
@@ -1855,25 +1926,12 @@ function WithdrawScreen({ onBack, onAddWallet, canWithdraw }: { onBack: () => vo
           </div>
         </div>
       )}
-
-      {!showTaskBlockPopup && showPwdPopup && (
-        <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 24 }}>
-          <div style={{ background: C.white, borderRadius: 10, padding: 20, maxWidth: 280, width: "100%" }}>
-            <div style={{ fontWeight: 700, fontSize: 15, color: C.text, marginBottom: 6 }}>Withdrawal password</div>
-            <div style={{ fontSize: 12, color: C.textMid, marginBottom: 16 }}>Sorry! You have not set a withdrawal password. Please contact customer service to have it set for you.</div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => { setShowPwdPopup(false); onBack(); }} style={{ flex: 1, border: `1.5px solid ${C.border}`, borderRadius: 7, padding: "9px 0", background: "none", cursor: "pointer", fontSize: 13, color: C.textMid }}>Cancel</button>
-              <button onClick={() => setShowPwdPopup(false)} style={{ flex: 1, background: `linear-gradient(135deg, ${C.wine} 0%, ${C.wineDark} 100%)`, border: "none", borderRadius: 7, padding: "9px 0", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}><Headphones size={13} /> Contact Service</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
 // ─── Add Wallet Screen ────────────────────────────────────────────────────────
-function AddWalletScreen({ onBack }: { onBack: () => void }) {
+function AddWalletScreen({ onBack, onSaved }: { onBack: () => void; onSaved?: () => void }) {
   const [walletName, setWalletName] = useState("");
   const [protocol, setProtocol] = useState("TRC-20");
   const [address, setAddress] = useState("");
@@ -1906,7 +1964,7 @@ function AddWalletScreen({ onBack }: { onBack: () => void }) {
             </div>
           </div>
         </div>
-        <button style={{ width: "100%", background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`, border: "none", borderRadius: 8, padding: "13px 0", fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer", marginBottom: 8 }}>OK</button>
+        <button onClick={() => { if (onSaved) onSaved(); else onBack(); }} style={{ width: "100%", background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`, border: "none", borderRadius: 8, padding: "13px 0", fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer", marginBottom: 8 }}>OK</button>
         <button onClick={onBack} style={{ width: "100%", border: "none", background: "none", cursor: "pointer", fontSize: 13, color: C.textMid }}>Cancel</button>
       </div>
     </div>
@@ -2743,6 +2801,8 @@ export default function App() {
   const [accountBalance,  setAccountBalance]  = useState(50); // Start in Amazon tier
   const [tierPopup,       setTierPopup]       = useState<"alibaba" | "aliexpress" | null>(null);
   const [canWithdraw,     setCanWithdraw]     = useState(false); // unlocks after 25 orders; resets each new session
+  const [fundPwdSet,      setFundPwdSet]      = useState(false); // withdrawal (fund) password set by user
+  const [eWalletAdded,    setEWalletAdded]    = useState(false); // e-wallet bound by user
   const [sessionApproved, setSessionApproved] = useState(false); // admin/customer-service grants permission to work
   const [frozenAmount,    setFrozenAmount]    = useState(0);     // default 0; set by admin if account is frozen
 
@@ -2864,8 +2924,8 @@ export default function App() {
   const renderContent = () => {
     if (subPage === "deposit")          return <DepositScreen   onBack={goBack} onQR={() => setSubPage("deposit-qr")} />;
     if (subPage === "deposit-qr")       return <DepositQRScreen  onBack={() => setSubPage("deposit")} />;
-    if (subPage === "withdraw")         return <WithdrawScreen   onBack={goBack} onAddWallet={() => setSubPage("add-wallet")} canWithdraw={canWithdraw} />;
-    if (subPage === "add-wallet")       return <AddWalletScreen  onBack={() => setSubPage("withdraw")} />;
+    if (subPage === "withdraw")         return <WithdrawScreen   onBack={goBack} onAddWallet={() => setSubPage("add-wallet")} canWithdraw={canWithdraw} fundPwdSet={fundPwdSet} onFundPwdSet={() => setFundPwdSet(true)} eWalletAdded={eWalletAdded} />;
+    if (subPage === "add-wallet")       return <AddWalletScreen  onBack={() => setSubPage("withdraw")} onSaved={() => { setEWalletAdded(true); setSubPage("withdraw"); }} />;
     if (subPage === "teams")            return <TeamsScreen      onBack={goBack} />;
     if (subPage === "invite")           return <InviteScreen     onBack={goBack} />;
     if (subPage === "wallet-mgmt")      return <WalletMgmtScreen onBack={goBack} onAdd={() => setSubPage("add-wallet")} />;
