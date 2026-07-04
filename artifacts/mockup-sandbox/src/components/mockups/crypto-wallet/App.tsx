@@ -1536,45 +1536,47 @@ function RecordScreen({ orders, accountBalance, onSubmitIncomplete }: { orders: 
             boxShadow: "0 1px 6px rgba(0,0,0,0.07)", cursor: "pointer", textAlign: "left",
             borderLeft: order.isCombo ? `3px solid ${C.purple}` : "none",
           }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <span style={{ fontSize: 11, color: C.textLight }}>{order.time}</span>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <span style={{ fontSize: 11.5, color: C.textMid, fontWeight: 600, wordBreak: "break-all" }}>Order Nos: {order.id}</span>
               <StatusChip status={order.status} isCombo={order.isCombo} />
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <div style={{ width: 42, height: 42, borderRadius: 7, flexShrink: 0, background: `${order.products[0].accentColor}18`, border: `1px solid ${order.products[0].accentColor}33`, overflow: "hidden" }}>
-                {order.products[0].imageUrl ? (
-                  <img src={order.products[0].imageUrl} alt={order.products[0].name} style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                    onError={e => {
-                      const el = e.target as HTMLImageElement;
-                      el.style.display = "none";
-                      el.parentElement!.innerHTML = `<span style="font-size:22px;display:flex;align-items:center;justify-content:center;height:100%">${order.products[0].icon}</span>`;
-                    }}
-                  />
-                ) : (
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontSize: 22 }}>{order.products[0].icon}</div>
-                )}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {order.products[0].name}
+            {order.products.map((p, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: i < order.products.length - 1 ? 8 : 12, paddingBottom: i < order.products.length - 1 ? 8 : 0, borderBottom: i < order.products.length - 1 ? `1px solid ${C.border}` : "none" }}>
+                <div style={{ width: 42, height: 42, borderRadius: 7, flexShrink: 0, background: `${p.accentColor}18`, border: `1px solid ${p.accentColor}33`, overflow: "hidden" }}>
+                  {p.imageUrl ? (
+                    <img src={p.imageUrl} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      onError={e => {
+                        const el = e.target as HTMLImageElement;
+                        el.style.display = "none";
+                        el.parentElement!.innerHTML = `<span style="font-size:22px;display:flex;align-items:center;justify-content:center;height:100%">${p.icon}</span>`;
+                      }}
+                    />
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontSize: 22 }}>{p.icon}</div>
+                  )}
                 </div>
-                <div style={{ fontSize: 10, color: C.textLight }}>
-                  {order.products[0].unitPrice} USDT × {order.products[0].qty}
-                  {order.products.length > 1 && ` (+${order.products.length - 1} more)`}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {p.name}
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 10.5, color: C.textLight }}>{p.unitPrice} USDT</span>
+                    <span style={{ fontSize: 10.5, color: C.textLight }}>x{p.qty}</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            ))}
 
             {[
-              { label: "Order ID",   val: order.id,                   mono: true  },
-              { label: "Platform",   val: order.platform                          },
-              { label: "Amount",     val: `${order.amount} USDT`                  },
-              { label: "Commission", val: `+${order.commission} USDT`, green: true },
+              { label: "Transaction time", val: order.time                              },
+              { label: "Order amount",     val: `${order.amount} USDT`                  },
+              { label: "Commissions",      val: `${order.commission} USDT`, green: true },
+              { label: "Expected income",  val: `${order.expectedIncome} USDT`, orange: true },
             ].map(row => (
               <div key={row.label} style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                 <span style={{ fontSize: 12, color: C.textMid }}>{row.label}</span>
-                <span style={{ fontSize: 12, color: row.green ? C.green : C.text, fontWeight: row.green ? 600 : 400, fontFamily: row.mono ? "monospace" : "inherit", maxWidth: "58%", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis" }}>{row.val}</span>
+                <span style={{ fontSize: row.orange ? 14 : 12, color: row.orange ? C.orange : row.green ? C.green : C.text, fontWeight: (row.green || row.orange) ? 700 : 400, maxWidth: "58%", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis" }}>{row.val}</span>
               </div>
             ))}
 
