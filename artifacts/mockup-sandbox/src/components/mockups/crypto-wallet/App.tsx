@@ -1977,29 +1977,31 @@ type TeamMember = {
   username: string;
   level: 1 | 2 | 3;
   deposit: number;
+  withdraw: number;
   joined: string;
   invitedBy: string;
 };
 
 const MOCK_TEAM_MEMBERS: TeamMember[] = [
-  { id: "m1", username: "Karim_88",    level: 1, deposit: 250,  joined: "2026-05-12", invitedBy: "you" },
-  { id: "m2", username: "Rafiq_21",    level: 1, deposit: 500,  joined: "2026-05-20", invitedBy: "you" },
-  { id: "m3", username: "Sumon_77",    level: 1, deposit: 0,    joined: "2026-06-02", invitedBy: "you" },
-  { id: "m4", username: "Nasrin_09",   level: 2, deposit: 120,  joined: "2026-05-18", invitedBy: "m1" },
-  { id: "m5", username: "Jahid_55",    level: 2, deposit: 300,  joined: "2026-05-25", invitedBy: "m1" },
-  { id: "m6", username: "Mitu_43",     level: 2, deposit: 80,   joined: "2026-06-10", invitedBy: "m2" },
-  { id: "m7", username: "Rakib_16",    level: 3, deposit: 60,   joined: "2026-06-05", invitedBy: "m4" },
-  { id: "m8", username: "Shanta_30",   level: 3, deposit: 0,    joined: "2026-06-15", invitedBy: "m5" },
+  { id: "m1", username: "Karim_88",    level: 1, deposit: 250,  withdraw: 100, joined: "2026-05-12", invitedBy: "you" },
+  { id: "m2", username: "Rafiq_21",    level: 1, deposit: 500,  withdraw: 200, joined: "2026-05-20", invitedBy: "you" },
+  { id: "m3", username: "Sumon_77",    level: 1, deposit: 0,    withdraw: 0,   joined: "2026-06-02", invitedBy: "you" },
+  { id: "m4", username: "Nasrin_09",   level: 2, deposit: 120,  withdraw: 40,  joined: "2026-05-18", invitedBy: "m1" },
+  { id: "m5", username: "Jahid_55",    level: 2, deposit: 300,  withdraw: 150, joined: "2026-05-25", invitedBy: "m1" },
+  { id: "m6", username: "Mitu_43",     level: 2, deposit: 80,   withdraw: 0,   joined: "2026-06-10", invitedBy: "m2" },
+  { id: "m7", username: "Rakib_16",    level: 3, deposit: 60,   withdraw: 20,  joined: "2026-06-05", invitedBy: "m4" },
+  { id: "m8", username: "Shanta_30",   level: 3, deposit: 0,    withdraw: 0,   joined: "2026-06-15", invitedBy: "m5" },
 ];
 
 function TeamsScreen({ onBack }: { onBack: () => void }) {
   const [level, setLevel] = useState<1 | 2 | 3>(1);
   const membersAtLevel = MOCK_TEAM_MEMBERS.filter(m => m.level === level);
   const totalDeposit = MOCK_TEAM_MEMBERS.reduce((sum, m) => sum + m.deposit, 0);
+  const totalWithdraw = MOCK_TEAM_MEMBERS.reduce((sum, m) => sum + m.withdraw, 0);
   const stats = [
     { label: "Agent Profit",      value: "0.00" },
     { label: "Total recharge",    value: totalDeposit.toFixed(2) },
-    { label: "Total withdraw",    value: "0.00" },
+    { label: "Total withdraw",    value: totalWithdraw.toFixed(2) },
     { label: "Order commission",  value: "0.00" },
     { label: "Newcomers",         value: String(MOCK_TEAM_MEMBERS.length) },
     { label: "Activities number", value: "0"    },
@@ -2067,6 +2069,8 @@ function TeamsScreen({ onBack }: { onBack: () => void }) {
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: m.deposit > 0 ? C.green : C.textLight }}>{m.deposit.toFixed(2)} USDT</div>
                   <div style={{ fontSize: 10.5, color: C.textLight, marginTop: 2 }}>Deposit</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: m.withdraw > 0 ? C.orange : C.textLight, marginTop: 6 }}>{m.withdraw.toFixed(2)} USDT</div>
+                  <div style={{ fontSize: 10.5, color: C.textLight, marginTop: 2 }}>Withdraw</div>
                 </div>
               </div>
             );
