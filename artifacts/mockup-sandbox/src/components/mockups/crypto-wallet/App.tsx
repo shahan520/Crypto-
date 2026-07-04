@@ -2048,23 +2048,29 @@ function TeamsScreen({ onBack }: { onBack: () => void }) {
             {level === 2 && "People invited by your Level 1 members' invite codes"}
             {level === 3 && "People invited by your Level 2 members' invite codes"}
           </div>
-          {membersAtLevel.map(m => (
-            <div key={m.id} style={{ background: C.white, borderRadius: 8, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: "50%", background: C.orangeLight, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <User size={18} color={C.orange} />
+          {membersAtLevel.map(m => {
+            const parent = m.level > 1 ? MOCK_TEAM_MEMBERS.find(p => p.id === m.invitedBy) : undefined;
+            return (
+              <div key={m.id} style={{ background: C.white, borderRadius: 8, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: C.orangeLight, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <User size={18} color={C.orange} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{m.username}</div>
+                    <div style={{ fontSize: 10.5, color: C.textLight, marginTop: 2 }}>Joined {m.joined}</div>
+                    {parent && (
+                      <div style={{ fontSize: 10.5, color: C.orange, marginTop: 2 }}>Invited by: {parent.username}</div>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{m.username}</div>
-                  <div style={{ fontSize: 10.5, color: C.textLight, marginTop: 2 }}>Joined {m.joined}</div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: m.deposit > 0 ? C.green : C.textLight }}>{m.deposit.toFixed(2)} USDT</div>
+                  <div style={{ fontSize: 10.5, color: C.textLight, marginTop: 2 }}>Deposit</div>
                 </div>
               </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: m.deposit > 0 ? C.green : C.textLight }}>{m.deposit.toFixed(2)} USDT</div>
-                <div style={{ fontSize: 10.5, color: C.textLight, marginTop: 2 }}>Deposit</div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
