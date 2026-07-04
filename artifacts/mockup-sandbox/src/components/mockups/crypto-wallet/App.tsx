@@ -1476,9 +1476,19 @@ function OrderDetailsPopup({ order, onClose }: { order: OrderRecord; onClose: ()
 // ═══════════════════════════════════════════════════════════════════════════════
 // RECORD SCREEN
 // ═══════════════════════════════════════════════════════════════════════════════
-function RecordScreen({ orders, onSubmitIncomplete }: { orders: OrderRecord[]; onSubmitIncomplete: (id: string) => void }) {
+function RecordScreen({ orders, accountBalance, onSubmitIncomplete }: { orders: OrderRecord[]; accountBalance: number; onSubmitIncomplete: (id: string) => void }) {
   const [tab, setTab] = useState<"incomplete" | "complete">("incomplete");
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
+  const [insufficientOrderId, setInsufficientOrderId] = useState<string | null>(null);
+
+  const handleSubmitClick = (order: OrderRecord) => {
+    if (order.isCombo && accountBalance < parseFloat(order.amount)) {
+      setInsufficientOrderId(order.id);
+      setTimeout(() => setInsufficientOrderId(prev => (prev === order.id ? null : prev)), 3000);
+      return;
+    }
+    onSubmitIncomplete(order.id);
+  };
 
   const incompleteOrders = orders.filter(o => o.status === "pending");
   const completeOrders   = orders.filter(o => o.status === "complete");
@@ -1506,9 +1516,24 @@ function RecordScreen({ orders, onSubmitIncomplete }: { orders: OrderRecord[]; o
 
       <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
         {visible.length > 0 ? visible.map(order => (
-          <button key={order.id} onClick={() => setSelectedOrder(order)} style={{
+          <div key={order.id} style={{ position: "relative", marginBottom: 8 }}>
+          {insufficientOrderId === order.id && (
+            <div style={{
+              position: "absolute", top: 60, left: "8%", right: "8%", zIndex: 20,
+              background: "rgba(20,20,20,0.92)", color: "#fff", borderRadius: 8,
+              padding: "10px 14px", fontSize: 12, lineHeight: 1.5, textAlign: "center",
+              boxShadow: "0 4px 14px rgba(0,0,0,0.35)",
+            }}>
+              Your account balance is not enough, you need to recharge {(parseFloat(order.amount) - accountBalance).toFixed(3)} to submit this order
+              <div style={{
+                position: "absolute", bottom: -6, left: "50%", transform: "translateX(-50%) rotate(45deg)",
+                width: 12, height: 12, background: "rgba(20,20,20,0.92)",
+              }} />
+            </div>
+          )}
+          <div role="button" tabIndex={0} onClick={() => setSelectedOrder(order)} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") setSelectedOrder(order); }} style={{
             width: "100%", background: C.white, border: "none", borderRadius: 10, padding: 12,
-            boxShadow: "0 1px 6px rgba(0,0,0,0.07)", marginBottom: 8, cursor: "pointer", textAlign: "left",
+            boxShadow: "0 1px 6px rgba(0,0,0,0.07)", cursor: "pointer", textAlign: "left",
             borderLeft: order.isCombo ? `3px solid ${C.purple}` : "none",
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -1554,14 +1579,15 @@ function RecordScreen({ orders, onSubmitIncomplete }: { orders: OrderRecord[]; o
             ))}
 
             {tab === "incomplete" && (
-              <button onClick={e => { e.stopPropagation(); onSubmitIncomplete(order.id); }} style={{
+              <button onClick={e => { e.stopPropagation(); handleSubmitClick(order); }} style={{
                 marginTop: 10, width: "100%", padding: "8px 0",
                 background: `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
                 border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600, color: "#fff", cursor: "pointer",
               }}>Submit order</button>
             )}
             <div style={{ marginTop: 6, textAlign: "center", fontSize: 10, color: C.textLight }}>Tap to view details</div>
-          </button>
+          </div>
+          </div>
         )) : (
           <div style={{ textAlign: "center", padding: "32px 20px", color: C.textLight }}>
             <ClipboardList size={44} color={C.border} style={{ marginBottom: 10 }} />
@@ -2983,7 +3009,7 @@ export default function App() {
         }}
       />
     );
-    if (tab === "record")  return <RecordScreen  orders={orders} onSubmitIncomplete={handleSubmitIncomplete} />;
+    if (tab === "record")  return <RecordScreen  orders={orders} accountBalance={accountBalance} onSubmitIncomplete={handleSubmitIncomplete} />;
     if (tab === "mine")    return <MineScreen    onNavigate={goSub} isVip={isVip} username={username} avatarUrl={avatarUrl} />;
     return null;
   };
