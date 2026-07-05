@@ -602,6 +602,25 @@ function MenuScreen({
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// ─── Popup Product Lists (shown inside the grab-order popup) ──────────────────
+const POPUP_PRODUCTS_BY_PLATFORM: Record<string, Array<{ name: string; price: string; qty: number; img: string }>> = {
+  amazon: [
+    { name: "Nintendo Switch OLED Console",  price: "0.26", qty: 955, img: "https://images.unsplash.com/photo-1587305852879-d5eca6aa90ca?w=80&q=80" },
+    { name: "Samsung Galaxy Tab A8",          price: "0.38", qty: 693, img: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=80&q=80" },
+    { name: "Infant Clothing Set",            price: "4.96", qty: 53,  img: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=80&q=80" },
+  ],
+  alibaba: [
+    { name: "Wireless Earbuds Pro Max",       price: "0.38", qty: 820, img: "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=80&q=80" },
+    { name: "Smart Watch Band Series 7",      price: "0.52", qty: 610, img: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=80&q=80" },
+    { name: "USB-C Fast Charging Hub 6-Port", price: "2.10", qty: 148, img: "https://images.unsplash.com/photo-1601524909162-ae8725290836?w=80&q=80" },
+  ],
+  aliexpress: [
+    { name: "LED Strip Lights 5m RGB Smart",  price: "0.18", qty: 1200, img: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=80&q=80" },
+    { name: "Portable Bluetooth Speaker",     price: "0.45", qty: 480,  img: "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=80&q=80" },
+    { name: "Phone Case Bundle Pack x10",     price: "1.20", qty: 210,  img: "https://images.unsplash.com/photo-1613578723869-e45d98f7e7cf?w=80&q=80" },
+  ],
+};
+
 // TASK DETAIL SCREEN  (combo orders logic)
 // ═══════════════════════════════════════════════════════════════════════════════
 // Combo positions in a 25-order session (1-indexed)
@@ -1055,139 +1074,101 @@ function TaskDetailScreen({
       {/* ── Grab Order Popup ── */}
       {popupOpen && (
         <>
+          {/* Backdrop */}
           <div onClick={closePopup} style={{
-            position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 200,
+            position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200,
             opacity: popupVisible ? 1 : 0, transition: "opacity 280ms ease",
           }} />
+          {/* Centered card */}
           <div style={{
-            position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 201,
-            background: C.white, borderRadius: "18px 18px 0 0",
-            display: "flex", flexDirection: "column",
-            transform: popupVisible ? "translateY(0)" : "translateY(100%)",
-            transition: "transform 280ms cubic-bezier(0.32,0.72,0,1)",
-            boxShadow: "0 -4px 32px rgba(0,0,0,0.18)", overflow: "hidden",
+            position: "absolute", left: 16, right: 16, top: "50%", zIndex: 201,
+            transform: popupVisible ? "translateY(-50%) scale(1)" : "translateY(-50%) scale(0.92)",
+            opacity: popupVisible ? 1 : 0,
+            transition: "transform 280ms cubic-bezier(0.32,0.72,0,1), opacity 280ms ease",
+            background: C.white, borderRadius: 16,
+            boxShadow: "0 8px 40px rgba(0,0,0,0.25)", overflow: "hidden",
           }}>
-            <div style={{ padding: "10px 18px 0", flexShrink: 0 }}>
-              <div style={{ width: 36, height: 4, borderRadius: 2, background: "#d1d5db", margin: "0 auto 12px" }} />
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 16, fontWeight: 700, color: C.text }}>Order Details</span>
-                  {depositDone && (
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: `linear-gradient(135deg, ${C.purple}, #7c3aed)`, padding: "2px 8px", borderRadius: 10 }}>
-                      COMBO
-                    </span>
-                  )}
+            {successVisible ? (
+              /* ── Success state ── */
+              <div style={{ padding: "32px 20px", textAlign: "center" }}>
+                <div style={{
+                  width: 60, height: 60, borderRadius: "50%",
+                  background: `linear-gradient(135deg, ${C.green} 0%, #16a34a 100%)`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  margin: "0 auto 14px",
+                  boxShadow: `0 0 0 10px ${C.green}22`,
+                }}>
+                  <CheckCircle2 size={32} color="#fff" />
                 </div>
-                <button onClick={closePopup} style={{ border: "none", background: "#f4f5f7", cursor: "pointer", width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <X size={15} color={C.textMid} />
+                <div style={{ fontSize: 17, fontWeight: 800, color: C.text, marginBottom: 4 }}>Order Submitted!</div>
+                <div style={{ fontSize: 12, color: C.textMid }}>Recorded successfully.</div>
+              </div>
+            ) : (
+              /* ── Order details state ── */
+              <div style={{ padding: "18px 18px 20px" }}>
+                {/* Order number header */}
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 14 }}>
+                  Order Nos: 2601111100{orderId.slice(2)}
+                </div>
+
+                {/* Product list card */}
+                <div style={{ background: "#f5f5f5", borderRadius: 10, padding: "10px 12px", marginBottom: 16 }}>
+                  {(POPUP_PRODUCTS_BY_PLATFORM[p] ?? POPUP_PRODUCTS_BY_PLATFORM.amazon).map((item, i, arr) => (
+                    <div key={i} style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      paddingBottom: i < arr.length - 1 ? 10 : 0,
+                      marginBottom: i < arr.length - 1 ? 10 : 0,
+                      borderBottom: i < arr.length - 1 ? "1px solid #e5e5e5" : "none",
+                    }}>
+                      {/* Thumbnail */}
+                      <div style={{ width: 48, height: 48, borderRadius: 6, overflow: "hidden", flexShrink: 0, background: "#e0e0e0" }}>
+                        <img
+                          src={item.img}
+                          alt={item.name}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                        />
+                      </div>
+                      {/* Info */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: C.text, lineHeight: 1.3, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {item.name}
+                        </div>
+                        <div style={{ fontSize: 11, color: C.text, marginBottom: 1 }}>{item.price}USDT</div>
+                        <div style={{ fontSize: 10, color: C.textLight }}>Original details</div>
+                      </div>
+                      {/* Quantity */}
+                      <div style={{ fontSize: 12, fontWeight: 600, color: C.textMid, flexShrink: 0 }}>x{item.qty}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Transaction details */}
+                <div style={{ marginBottom: 20 }}>
+                  {[
+                    { label: "Transaction time:", val: new Date().toISOString().replace("T", " ").slice(0, 19), orange: false },
+                    { label: "Order amount:",     val: `${depositDone ? comboAmt : orderAmt}USDT`,      orange: false },
+                    { label: "Commissions:",      val: `${depositDone ? comboComm : commission}USDT`,   orange: false },
+                    { label: "Expected income:",  val: `${depositDone ? comboExpected : expected}USDT`, orange: true  },
+                  ].map((row, i) => (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: i < 3 ? 7 : 0 }}>
+                      <span style={{ fontSize: 12, color: C.textMid }}>{row.label}</span>
+                      <span style={{ fontSize: 12, fontWeight: row.orange ? 600 : 400, color: row.orange ? C.orange : C.text }}>{row.val}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Submit button */}
+                <button onClick={() => handleSubmit(depositDone)} style={{
+                  width: "100%",
+                  background: "#7c3333",
+                  border: "none", borderRadius: 24, padding: "13px 0",
+                  fontSize: 15, fontWeight: 600, color: "#fff", cursor: "pointer",
+                }}>
+                  Submit order
                 </button>
               </div>
-            </div>
-
-            {/* Compact popup body — fits in phone without scrolling */}
-            <div style={{ padding: "0 14px 14px" }}>
-
-              {successVisible ? (
-                /* ── Success state ── */
-                <div style={{ textAlign: "center", padding: "8px 0 4px" }}>
-                  <div style={{
-                    width: 56, height: 56, borderRadius: "50%",
-                    background: `linear-gradient(135deg, ${C.green} 0%, #16a34a 100%)`,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    margin: "0 auto 8px",
-                    boxShadow: `0 0 0 8px ${C.green}22`,
-                  }}>
-                    <CheckCircle2 size={30} color="#fff" />
-                  </div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 2 }}>Order Submitted!</div>
-                  <div style={{ fontSize: 11, color: C.textMid, marginBottom: 10 }}>Recorded successfully.</div>
-                  <div style={{ background: `${C.green}10`, border: `1px solid ${C.green}40`, borderRadius: 8, padding: "8px 12px", marginBottom: 8, textAlign: "left" }}>
-                    {[
-                      { label: "Amount",     val: `${depositDone ? comboAmt : orderAmt} USDT` },
-                      { label: "Commission", val: `+${depositDone ? comboComm : commission} USDT`, green: true },
-                      { label: "Income",     val: `${depositDone ? comboExpected : expected} USDT`, bold: true },
-                    ].map((row, i, arr) => (
-                      <div key={row.label} style={{ display: "flex", justifyContent: "space-between", paddingBottom: i < arr.length - 1 ? 5 : 0, marginBottom: i < arr.length - 1 ? 5 : 0, borderBottom: i < arr.length - 1 ? `1px dashed ${C.green}40` : "none" }}>
-                        <span style={{ fontSize: 11, color: C.textMid }}>{row.label}</span>
-                        <span style={{ fontSize: 12, fontWeight: (row as {bold?:boolean}).bold ? 700 : 600, color: (row as {green?:boolean}).green ? C.green : C.text }}>{row.val}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ fontSize: 10, color: C.textLight }}>Returning to dashboard…</div>
-                </div>
-              ) : (
-                /* ── Order details state ── */
-                <React.Fragment>
-                  {/* Product image — smaller */}
-                  <div style={{ borderRadius: 10, overflow: "hidden", background: `${accent}12`, border: `1.5px solid ${accent}30`, marginBottom: 8, position: "relative" }}>
-                    <div style={{ height: 80, overflow: "hidden", position: "relative" }}>
-                      <img
-                        src={depositDone ? PRODUCT_IMAGES.combo : PRODUCT_IMAGES[p]}
-                        alt={product.name}
-                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                        onError={e => {
-                          const el = e.target as HTMLImageElement;
-                          el.style.display = "none";
-                          el.nextElementSibling && ((el.nextElementSibling as HTMLElement).style.display = "flex");
-                        }}
-                      />
-                      <div style={{ display: "none", height: 80, alignItems: "center", justifyContent: "center", background: `${accent}15` }}>
-                        <Package size={28} color={accent} />
-                      </div>
-                      {depositDone && (
-                        <div style={{ position: "absolute", top: 6, right: 6, background: `linear-gradient(135deg, ${C.purple}, #7c3aed)`, borderRadius: 8, padding: "2px 7px", display: "flex", alignItems: "center", gap: 3 }}>
-                          <Zap size={9} color="#fff" />
-                          <span style={{ fontSize: 9, fontWeight: 700, color: "#fff" }}>COMBO</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Product name + SKU compact */}
-                  <div style={{ marginBottom: 8 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: C.text, lineHeight: 1.3, marginBottom: 1 }}>
-                      {depositDone ? `Combo Bundle — ${NAMES[p]} Premium` : product.name}
-                    </div>
-                    <div style={{ fontSize: 9, color: C.textLight, fontFamily: "monospace" }}>SKU: {depositDone ? `COMBO-${orderId.slice(-6)}` : product.sku}</div>
-                  </div>
-
-                  {/* Order figures — 3 cols */}
-                  <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-                    {[
-                      { label: "Amount",     val: `${depositDone ? comboAmt : orderAmt}`, color: C.orange },
-                      { label: "Comm.",      val: `+${depositDone ? comboComm : commission}`, color: C.green },
-                      { label: "Income",     val: `${depositDone ? comboExpected : expected}`, color: depositDone ? C.purple : C.text },
-                    ].map(s => (
-                      <div key={s.label} style={{ flex: 1, background: C.bg, borderRadius: 7, padding: "6px 4px", textAlign: "center", border: `1px solid ${C.border}` }}>
-                        <div style={{ fontSize: 9, color: C.textLight, marginBottom: 1 }}>{s.label}</div>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: s.color }}>{s.val}</div>
-                        <div style={{ fontSize: 8, color: C.textLight }}>USDT</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Commission rate badge + Order ID */}
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                    <div style={{ fontSize: 10, color: C.textLight, fontFamily: "monospace" }}>ID: {orderId}</div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: depositDone ? C.purple : C.orange, background: depositDone ? `${C.purple}15` : `${C.orange}15`, padding: "2px 8px", borderRadius: 8 }}>
-                      {depositDone ? COMBO_RATE : rate}% commission
-                    </div>
-                  </div>
-
-                  <button onClick={() => handleSubmit(depositDone)} style={{
-                    width: "100%",
-                    background: depositDone
-                      ? `linear-gradient(135deg, ${C.purple} 0%, #7c3aed 100%)`
-                      : `linear-gradient(135deg, ${C.orange} 0%, ${C.orangeDark} 100%)`,
-                    border: "none", borderRadius: 10, padding: "12px 0",
-                    fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer",
-                    boxShadow: depositDone ? `0 4px 14px rgba(139,92,246,0.35)` : `0 4px 14px rgba(245,161,0,0.35)`,
-                  }}>
-                    {depositDone ? "Submit Combo Order" : "Submit Order"}
-                  </button>
-                </React.Fragment>
-              )}
-            </div>
+            )}
           </div>
         </>
       )}
